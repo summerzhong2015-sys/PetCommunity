@@ -1,0 +1,84 @@
+# Product Execution Prompt | PetCommunity
+
+You are working in General AI as a senior product engineer. Inspect the current workspace first, preserve sound existing structure and user changes, then implement a complete, working MVP. Ask no more than three short questions, and only when missing information would materially change the product direction; otherwise proceed with sensible defaults.
+
+## 1 · Creator and project context
+
+- **Project name:** PetCommunity
+- **Project ID:** AIC-2026_0011
+- **Who I am:** Im grade 6 and i wanna build an App
+- **Product type:** Mobile app
+- **Target AI:** General AI
+
+## 2 · PACTS-M product framework
+
+### P — Purpose
+every time i leave my dog in the backyard i always worry if he might runaway. i don't want other people to have to worry about very simple things like just leaving their pets in the backyard or simply opening a door when your cats near you. i wanna make a mobile app for pet owners, like a communitity where we care for the pets. for example if somebody's  cat or dog went missing a notification will be sent through out your neibourhood.I wanna be able to connect to local shelters and, donors to help out the animals but most of all(the centre) i want people to be able to connect through pets. with posts and just messages to people 1km~2km around your neibourhood and be able to see the routes others take. being able to communicate freely through your pet without any private informations needed, you wont even need to show yourself at all. I believe this app would be a wonderful way to help people connect through pets and get to know each other
+
+### A — Audience
+I feel like pet owners would use it the most, for example 4 days ago I was walking my dog along the usual route until I saw my neibour walking his dog too, i said hi and asked whats his dogs name again. he replied for the 1millonth time he replied "wolf", i dont want people to forget other peoples dogs name cause i find it a bit embarrasing.
+
+### C — Challenge
+Everytime I see someone, i'll say "HI" and thats it, no social interaction no conversation, maybe a  "who are you again?". i want people to know each other  and be able to say hi. people walk past me and always just a smile and nothing else not a real conversation where people can socially interact.
+
+### T — Task
+1.send events, things you think people will be intrested in
+
+2.see other pet owners and pets through out chat 
+
+3. socialize and message your neibours
+
+4.walk your dog and see if you recgonize other owners
+
+5.help people find lost pets
+
+6. help others find their lost pets
+
+7. notify your community and people within 2km if your pet got lost
+
+### S — Success
+over the the past month dog owners have been finding their lost pets through community help. cats from local shelters have been accepted 20% earlier than normal according to the adoption sections. now when i walk my dog theres people starting conversations everywhere, they each know each other and say "hi" constantly.
+
+### M — MVP
+1.send events, things you think people will be intrested in
+
+2.see other pet owners and pets through out chat 
+
+3. socialize and message your neibours
+
+4.walk your dog and see if you recgonize other owners
+
+5.help people find lost pets
+
+6. help others find their lost pets
+
+7. notify your community and people within 2km if your pet got lost
+
+## 3 · Implementation constraints
+
+- **Tech stack:** HTML, CSS, JavaScript, deployed on Vercel
+- **Design direction:** Restrained, spacious, clear hierarchy, readable
+- **Other constraints:** None
+
+## 4 · Your execution task
+
+1. Restate your understanding of the audience, core challenge, and MVP boundary in 5–8 bullets.
+2. Give a compact implementation plan covering first-screen hierarchy, core interactions, and important states.
+3. Build the complete working MVP. Do not stop at a concept, pseudocode, or disconnected snippets.
+4. Use specific product copy. No lorem ipsum, no empty marketing language, no meaningless placeholders.
+5. Support desktop and mobile, keyboard use, form labels, visible focus, readable contrast, and reduced-motion preferences.
+6. Provide clear feedback for input, empty, loading, success, error, copy, and export states.
+7. Do not add sign-in, payments, community, or a complex backend beyond the stated MVP. Keep future ideas in the handoff, not the implementation.
+8. Run the checks appropriate for the stack and fix real errors before handing off.
+
+## 5 · Final delivery format
+
+Deliver in this order:
+
+1. **Product understanding:** goal, audience, challenge, and MVP boundary.
+2. **Implementation:** create or update the required files and summarize the core interactions.
+3. **Verification:** state what you actually checked and the result.
+4. **How to run:** the shortest local and deployment steps.
+5. **Next steps:** no more than three, clearly separated from the MVP.
+
+Begin implementation.

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "PetCommunity"
+description = "A mobile-first neighborhood app that helps pet owners connect, discover nearby walks and events, and quickly rally support when a pet goes missing."
+version = "1.0.0"
+id = "artifacts/pet-community"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25372
+
+[services.development]
+run = "pnpm --filter @workspace/pet-community run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pet-community", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/pet-community/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25372"
+BASE_PATH = "/"

@@ -1,5 +1,7 @@
+@layer theme, base, clerk, components, utilities;
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Mono:wght@400;700&display=swap');
 @import 'tailwindcss';
+@import '@clerk/themes/shadcn.css';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
 
@@ -296,6 +298,18 @@
   .tag { display: inline-flex; align-items: center; border-radius: 999px; padding: .26rem .58rem; font-family: var(--app-font-mono); font-size: .64rem; font-weight: 700; letter-spacing: .02em; background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); }
   .avatar { display: grid; place-items: center; flex: none; width: 2.4rem; height: 2.4rem; border-radius: 50%; font-family: var(--app-font-serif); font-weight: 700; color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); }
   .avatar.small { width: 1.9rem; height: 1.9rem; font-size: .8rem; }
+  .pet-avatar { display: block; flex: none; width: 2.4rem; height: 2.4rem; border-radius: 50%; object-fit: cover; background: hsl(var(--secondary)); border: 1px solid hsl(var(--card-border)); }
+  .pet-avatar.small { width: 1.9rem; height: 1.9rem; }
+  .pet-avatar.medium { width: 3rem; height: 3rem; }
+  .pet-avatar.large { width: 5rem; height: 5rem; }
+  .pet-choice { display: flex; align-items: center; gap: .75rem; text-align: left; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); border-radius: .9rem; padding: .7rem; transition: border-color .2s ease, background-color .2s ease, transform .2s ease; }
+  .pet-choice:hover { border-color: hsl(var(--primary) / .55); transform: translateY(-1px); }
+  .pet-choice.selected { border-color: hsl(var(--primary)); background: hsl(var(--primary) / .06); box-shadow: 0 0 0 2px hsl(var(--primary) / .12); }
+  .pet-choice:focus-visible { outline: 3px solid hsl(var(--accent) / .7); outline-offset: 2px; }
+  .pet-choice strong, .pet-choice small { display: block; }
+  .pet-choice strong { font-size: .85rem; }
+  .pet-choice small { color: hsl(var(--muted-foreground)); font-size: .68rem; margin-top: .15rem; }
+  .pet-choice-check { display: grid; place-items: center; width: 1.35rem; height: 1.35rem; margin-left: auto; border-radius: 50%; color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); }
   .alert-banner { border: 1px solid hsl(7 62% 48% / .22); background: hsl(7 62% 48% / .08); color: hsl(7 55% 32%); }
   .dark .alert-banner { color: hsl(7 70% 78%); }
   .toast-pop { animation: toast-in .25s ease both; }

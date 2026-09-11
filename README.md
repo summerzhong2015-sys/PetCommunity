@@ -17,14 +17,39 @@ This is a pnpm workspace monorepo.
 | `lib/db` | PostgreSQL schema (Drizzle ORM) |
 | `scripts` | Workspace scripts |
 
-## Getting started
+## Run it locally
 
 ```bash
+corepack enable pnpm
 pnpm install
-pnpm --filter @workspace/api-server run dev   # API server on port 5000
+pnpm run dev        # http://localhost:5173
 ```
 
-Required env: `DATABASE_URL` — a Postgres connection string.
+That is the whole setup. The community feed, walks, events, adoption, giving
+and the lost-pet search map all run in the browser — no database, no API
+server, no account needed.
+
+`pnpm run dev` is shorthand for the line below. `PORT` and `BASE_PATH` are not
+optional: `vite.config.ts` throws on startup if either is missing.
+
+```bash
+PORT=5173 BASE_PATH=/ pnpm --filter @workspace/pet-community run dev
+```
+
+### Accounts
+
+Sign-in uses [Clerk](https://clerk.com), and is off unless a publishable key is
+present. Without one the app runs signed-out and keeps your profile in the
+browser. To turn it on, copy `artifacts/pet-community/.env.example` to
+`.env.local` and set `VITE_CLERK_PUBLISHABLE_KEY`.
+
+### The API server
+
+Only needed for work on the backend, and it wants a Postgres instance:
+
+```bash
+DATABASE_URL=postgres://... pnpm --filter @workspace/api-server run dev   # port 5000
+```
 
 ## Common commands
 

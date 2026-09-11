@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ClerkProvider, SignIn, SignUp, useClerk, useUser } from '@clerk/react';
-import { publishableKeyFromHost } from '@clerk/react/internal';
+import { ClerkProvider, SignIn, SignUp } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -25,14 +24,16 @@ import { Adopt, Shelters } from '@/pages/adopt';
 import { Give } from '@/pages/give';
 import { LostPets } from '@/pages/lost-pets';
 import { LostPetSearch } from '@/pages/lost-pet-search';
+import {
+  authEnabled,
+  clerkProxyUrl,
+  clerkPublishableKey,
+  useAuthActions,
+  useAuthUser,
+} from '@/lib/auth';
 
 const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 
 type PetType = 'dog' | 'cat';
 type PetProfile = { username: string; petName: string; petType: PetType };
@@ -82,8 +83,8 @@ const navItems = [
 
 function Shell({ children, notice, setNotice, profile }: { children: ReactNode; notice: Notice | null; setNotice: (n: Notice | null) => void; profile: PetProfile }) {
   const [location] = useLocation();
-  const { isSignedIn } = useUser();
-  const { signOut } = useClerk();
+  const { isSignedIn } = useAuthUser();
+  const { signOut } = useAuthActions();
   const active = (href: string) => href === '/' ? location === '/' : location.startsWith(href);
   return (
     <div className="app-shell md:flex">
@@ -103,9 +104,9 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
               <span className="min-w-0"><strong className="block text-sm truncate">{profile.username}</strong><span className="block text-[11px] text-sidebar-foreground/60 truncate">{profile.petName} · {profile.petType}</span></span>
             </Link>
             <button type="button" onClick={() => signOut({ redirectUrl: basePath || '/' })} className="text-sidebar-foreground/60 hover:text-sidebar-foreground p-1.5 rounded-lg" aria-label="Sign out" data-testid="button-sign-out"><ArrowRight size={15} className="rotate-180" /></button>
-          </div> : <Link href="/sign-in" className="rounded-2xl bg-sidebar-accent p-3 mb-3 flex items-center gap-3 hover:bg-sidebar-accent/80" data-testid="link-sidebar-sign-in">
+          </div> : <Link href={authEnabled ? '/sign-in' : '/profile'} className="rounded-2xl bg-sidebar-accent p-3 mb-3 flex items-center gap-3 hover:bg-sidebar-accent/80" data-testid="link-sidebar-sign-in">
             <span className="grid place-items-center w-9 h-9 rounded-xl bg-sidebar-primary/15 text-sidebar-primary"><Dog size={18} /></span>
-            <span><strong className="block text-sm">Set up your pet profile</strong><span className="block text-[11px] text-sidebar-foreground/60 mt-0.5">Sign in to get started</span></span>
+            <span><strong className="block text-sm">Set up your pet profile</strong><span className="block text-[11px] text-sidebar-foreground/60 mt-0.5">{authEnabled ? 'Sign in to get started' : 'Saved in this browser'}</span></span>
           </Link>}
           <div className="rounded-2xl bg-sidebar-accent p-4">
           <ShieldCheck size={19} className="text-sidebar-primary mb-3" />
@@ -117,7 +118,7 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
       <div className="flex-1 min-w-0 pb-20 md:pb-0">
         <header className="sticky top-0 z-20 md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-background/90 backdrop-blur">
           <Link href="/" className="flex items-center gap-2" data-testid="link-mobile-brand"><span className="grid place-items-center w-8 h-8 rounded-xl bg-primary text-primary-foreground"><Dog size={17} /></span><strong className="serif text-lg">PetCommunity</strong></Link>
-          {isSignedIn ? <Link href="/profile" className="p-1 rounded-xl" aria-label="Open your pet profile" data-testid="link-mobile-profile"><PetAvatar type={profile.petType} className="small" /></Link> : <Link href="/sign-in" className="text-xs font-bold text-primary px-2 py-2" data-testid="link-mobile-sign-in">Sign in</Link>}
+          {isSignedIn || !authEnabled ? <Link href="/profile" className="p-1 rounded-xl" aria-label="Open your pet profile" data-testid="link-mobile-profile"><PetAvatar type={profile.petType} className="small" /></Link> : <Link href="/sign-in" className="text-xs font-bold text-primary px-2 py-2" data-testid="link-mobile-sign-in">Sign in</Link>}
         </header>
         {children}
       </div>
@@ -233,11 +234,11 @@ function Messages({ notify }: { notify: (n: Notice) => void }) {
 }
 
 function Profile({ profile, setProfile, notify }: { profile: PetProfile; setProfile: (value: PetProfile) => void; notify: (n: Notice) => void }) {
-  const { isSignedIn, user } = useUser();
+  const { isSignedIn, user } = useAuthUser();
   const [form, setForm] = useState<PetProfile>(profile);
   useEffect(() => setForm(profile), [profile]);
 
-  if (!isSignedIn) {
+  if (authEnabled && !isSignedIn) {
     return <main className="page-wrap py-16 md:py-24"><div className="paper-card max-w-2xl mx-auto p-6 md:p-10 text-center"><PetAvatar type="dog" className="large mx-auto" /><p className="eyebrow mt-6">Your neighborhood identity</p><h1 className="serif text-4xl mt-2">Make it easy to say hello.</h1><p className="text-sm text-muted-foreground max-w-md mx-auto mt-3 leading-relaxed">Sign in to create a simple username and choose the pet portrait neighbors will recognize.</p><Link href="/sign-in" className="action-button button-primary mt-6" data-testid="link-profile-sign-in">Sign in to set up your profile <ArrowRight size={16} /></Link></div></main>;
   }
 
@@ -262,17 +263,32 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) { const [loc
 
 function AppContent() {
   const [notice, setNotice] = useState<Notice | null>(null);
-  const { user } = useUser();
+  const { user } = useAuthUser();
   const [profile, setProfile] = useStored<PetProfile>(user?.id ? `pc_profile_${user.id}` : 'pc_profile_guest', defaultProfile);
   const notify = (n: Notice) => setNotice(n);
   return <Shell profile={profile} notice={notice} setNotice={setNotice}><RoutedErrorBoundary><Switch><Route path="/" component={() => <Home notify={notify} profile={profile} />} /><Route path="/nearby" component={() => <Nearby notify={notify} />} /><Route path="/walks" component={() => <Walks notify={notify} />} /><Route path="/events" component={() => <Events notify={notify} />} /><Route path="/lost-pets" component={() => <LostPets notify={notify} />} /><Route path="/lost-pets/:id">{(params: { id: string }) => <LostPetSearch caseId={params.id} notify={notify} />}</Route><Route path="/adopt" component={() => <Adopt notify={notify} />} /><Route path="/shelters" component={() => <Shelters notify={notify} />} /><Route path="/give" component={() => <Give notify={notify} />} /><Route path="/messages" component={() => <Messages notify={notify} />} /><Route path="/profile" component={() => <Profile profile={profile} setProfile={setProfile} notify={notify} />} /><Route component={NotFoundView} /></Switch></RoutedErrorBoundary></Shell>;
 }
 
+function AccountsOff({ heading }: { heading: string }) {
+  return <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+    <div className="paper-card max-w-md p-8 text-center">
+      <ShieldCheck size={26} className="mx-auto text-primary mb-4" />
+      <p className="eyebrow">Accounts are off</p>
+      <h1 className="serif text-3xl mt-2">{heading}</h1>
+      <p className="text-sm text-muted-foreground mt-3 leading-relaxed">This copy is running without a Clerk publishable key, so there is nothing to sign in to. Everything else works — your profile, posts, saved pets and giving are kept in this browser.</p>
+      <p className="text-xs text-muted-foreground mt-4">To turn accounts on, set <code className="mono">VITE_CLERK_PUBLISHABLE_KEY</code> and restart the dev server.</p>
+      <Link href="/" className="action-button button-primary mt-6" data-testid="link-accounts-off-home"><ChevronLeft size={16} /> Back to the neighborhood</Link>
+    </div>
+  </div>;
+}
+
 function SignInPage() {
+  if (!authEnabled) return <AccountsOff heading="No sign-in needed here." />;
   return <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4"><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} /></div>;
 }
 
 function SignUpPage() {
+  if (!authEnabled) return <AccountsOff heading="Nothing to sign up for." />;
   return <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4"><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} /></div>;
 }
 
@@ -325,10 +341,14 @@ const clerkAppearance = {
   },
 };
 
+const appRoutes = <QueryClientProvider client={queryClient}><Switch><Route path="/sign-in/*?" component={SignInPage} /><Route path="/sign-up/*?" component={SignUpPage} /><Route component={AppContent} /></Switch></QueryClientProvider>;
+
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
+  // No key means no Clerk: rendering the provider anyway would throw and leave a blank page.
+  if (!authEnabled) return appRoutes;
   return <ClerkProvider
-    publishableKey={clerkPubKey}
+    publishableKey={clerkPublishableKey as string}
     proxyUrl={clerkProxyUrl}
     appearance={clerkAppearance}
     signInUrl={`${basePath}/sign-in`}
@@ -339,7 +359,7 @@ function ClerkProviderWithRoutes() {
     }}
     routerPush={(to) => setLocation(to.startsWith(basePath) ? to.slice(basePath.length) || '/' : to)}
     routerReplace={(to) => setLocation(to.startsWith(basePath) ? to.slice(basePath.length) || '/' : to, { replace: true })}
-  ><QueryClientProvider client={queryClient}><Switch><Route path="/sign-in/*?" component={SignInPage} /><Route path="/sign-up/*?" component={SignUpPage} /><Route component={AppContent} /></Switch></QueryClientProvider></ClerkProvider>;
+  >{appRoutes}</ClerkProvider>;
 }
 
 function App() {

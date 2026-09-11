@@ -71,7 +71,19 @@ export type PredictionInput = {
   timeOfDay: TimeOfDay;
 };
 
-export type Cell = { x: number; y: number; p: number };
+export type Cell = {
+  x: number;
+  y: number;
+  /** Probability that the animal is in this cell. */
+  p: number;
+  /**
+   * Share of the total probability held by this cell and every cell at least as
+   * likely: 1 at the single most likely cell, falling towards 0 out in the tail.
+   * Shading by this rather than by `p` keeps a diffuse field from washing the
+   * whole map in the top colour, and makes two maps comparable.
+   */
+  q: number;
+};
 
 export type Grid = {
   cells: Cell[];
@@ -283,12 +295,13 @@ export function predict(input: PredictionInput): Prediction {
       }
 
       value = Math.max(value, 1e-9);
-      cells.push({ x: p.x, y: p.y, p: value });
+      cells.push({ x: p.x, y: p.y, p: value, q: 0 });
       total += value;
     }
   }
 
   for (const cell of cells) cell.p /= total;
+  assignQuantiles(cells);
 
   const grid: Grid = { cells, cols: COLS, rows: ROWS, cellSize: CELL_SIZE };
   const zones = extractZones(grid, input);
@@ -318,6 +331,16 @@ export function predict(input: PredictionInput): Prediction {
     drivers,
     actions,
   };
+}
+
+/** Cumulative-mass rank per cell, best first. See `Cell.q`. */
+function assignQuantiles(cells: Cell[]): void {
+  const order = cells.map((cell, index) => ({ index, p: cell.p })).sort((a, b) => b.p - a.p);
+  let cumulative = 0;
+  for (const item of order) {
+    cells[item.index].q = 1 - cumulative;
+    cumulative += item.p;
+  }
 }
 
 function pickAnchorSighting(sightings: Sighting[]): Sighting | null {
@@ -621,7 +644,7 @@ function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** Highest probability in the field, used to normalise the heat-map shading. */
+/** Highest probability in the field. */
 export function peakProbability(grid: Grid): number {
   return grid.cells.reduce((max, c) => (c.p > max ? c.p : max), 0);
 }

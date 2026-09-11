@@ -165,6 +165,25 @@ const base = (over: Partial<PredictionInput> = {}): PredictionInput => ({
   check('peak probability is positive', peakProbability(p.grid) > 0);
 }
 
+// --- 10b. cumulative-mass shading field ---
+{
+  const p = predict(base({ minutesSinceLastSeen: 200 }));
+  const qs = p.grid.cells.map(c => c.q);
+  check('q is bounded to 0..1', qs.every(q => q >= -1e-9 && q <= 1 + 1e-9));
+  check('the most likely cell has q ~ 1',
+    Math.abs(Math.max(...qs) - 1) < 1e-9, `${Math.max(...qs)}`);
+  // Ordering by p must match ordering by q.
+  const sorted = [...p.grid.cells].sort((a, b) => b.p - a.p);
+  check('q decreases monotonically with p',
+    sorted.every((c, i) => i === 0 || c.q <= sorted[i - 1].q + 1e-12));
+  // A diffuse dog field and a tight cat field should both have a small hot core.
+  const hotShare = (pred: typeof p) => pred.grid.cells.filter(c => c.q > 0.8).length / pred.grid.cells.length;
+  const dogHot = hotShare(p);
+  const catHot = hotShare(predict(base({ species: 'cat', minutesSinceLastSeen: 200 })));
+  check('hot core stays a small share of the map for both species',
+    dogHot < 0.35 && catHot < 0.35, `dog=${dogHot.toFixed(3)} cat=${catHot.toFixed(3)}`);
+}
+
 // --- 11. determinism ---
 {
   const a = predict(base({ minutesSinceLastSeen: 137 }));

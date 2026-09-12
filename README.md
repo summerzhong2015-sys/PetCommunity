@@ -20,21 +20,22 @@ This is a pnpm workspace monorepo.
 ## Run it locally
 
 ```bash
-corepack enable pnpm
+corepack enable        # uses the pnpm version pinned in package.json
 pnpm install
-pnpm run dev        # http://localhost:5173
+pnpm run dev           # http://localhost:5173
 ```
 
 That is the whole setup. The community feed, walks, events, adoption, giving
 and the lost-pet search map all run in the browser — no database, no API
 server, no account needed.
 
-`pnpm run dev` is shorthand for the line below. `PORT` and `BASE_PATH` are not
-optional: `vite.config.ts` throws on startup if either is missing.
+Use `corepack enable` rather than installing pnpm globally. The repo pins
+pnpm 10 in `packageManager`, and a newer pnpm would rewrite `pnpm-lock.yaml`
+to a lockfile version Vercel does not recognise, which silently drops its
+build back to pnpm 6.
 
-```bash
-PORT=5173 BASE_PATH=/ pnpm --filter @workspace/pet-community run dev
-```
+`PORT` and `BASE_PATH` are read from the environment when present (Replit sets
+them) and otherwise default to 5173 and `/`.
 
 ### Accounts
 
@@ -42,6 +43,28 @@ Sign-in uses [Clerk](https://clerk.com), and is off unless a publishable key is
 present. Without one the app runs signed-out and keeps your profile in the
 browser. To turn it on, copy `artifacts/pet-community/.env.example` to
 `.env.local` and set `VITE_CLERK_PUBLISHABLE_KEY`.
+
+## Deploying
+
+The web app is a static build — no server, no database — so any static host
+works. Vercel is configured in `vercel.json`:
+
+| Setting | Value |
+| --- | --- |
+| Build command | `pnpm --filter @workspace/pet-community run build` |
+| Output directory | `artifacts/pet-community/dist/public` |
+| Install command | leave unset |
+
+Leave the install command blank. Overriding it makes Vercel use the *oldest*
+pnpm in the build image; left alone it reads `lockfileVersion: 9.0` and picks
+pnpm 10, which is what the lockfile was built with.
+
+The `rewrites` rule sends every unmatched path to `index.html`, so client-side
+routes like `/adopt` and `/lost-pets/l1` survive a refresh or a shared link.
+
+To enable accounts on the deployed site, add `VITE_CLERK_PUBLISHABLE_KEY` as an
+environment variable in the project settings. Without it the site runs
+signed-out, which is a perfectly good way to ship it.
 
 ### The API server
 

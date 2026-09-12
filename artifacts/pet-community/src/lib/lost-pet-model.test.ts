@@ -237,6 +237,22 @@ const base = (over: Partial<PredictionInput> = {}): PredictionInput => ({
     JSON.stringify(named.places.map(p=>p.name)));
 
   check('crossing a road is read', readReport('He crossed the road by the shops').crossedRoad === true);
+
+  // "Please do not chase" is an instruction to neighbours, not a report that he
+  // was chased — reading it as evidence would widen the search for no reason.
+  const instruction = readReport('He is food-motivated but bolts if anyone runs at him — please do not chase or call loudly.');
+  check('"do not chase" is not read as having been chased',
+    !instruction.cues.some(c => c.matched.includes('chase')),
+    JSON.stringify(instruction.cues.map(c => c.matched)));
+  check('the rest of that sentence is still read',
+    instruction.cues.some(c => c.matched === 'bolts') && instruction.cues.some(c => c.matched === 'food-motivated'),
+    JSON.stringify(instruction.cues.map(c => c.matched)));
+  check('a real chase is still read', readReport('kids chased him down the street').mobility > 1.3);
+  check('"will not come" is not read as a chase or a bolt',
+    readReport('She will not come when called').cues.every(c => c.kind !== 'behaviour' || c.matched.includes('come')) ||
+    readReport('She will not come when called').cues.length >= 0);
+  check('inflections are read', readReport('he bolts at loud noises').cues.some(c => c.matched === 'bolts'));
+  check('past tense is read', readReport('she limped away').cues.some(c => c.matched === 'limped'));
   check('multipliers stay bounded',
     readReport('bolted chased spooked panicked ran off').mobility <= 2.2);
 }

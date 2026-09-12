@@ -68,17 +68,17 @@ type Rule = {
 const RULES: Rule[] = [
   // How it left — the single biggest influence on how far it got.
   {
-    any: ['bolted', 'bolt', 'ran off', 'ran away', 'took off', 'darted', 'fled', 'sprinted', 'legged it', 'shot off'],
+    any: ['bolted', 'bolts', 'bolting', 'bolt', 'ran off', 'runs off', 'run off', 'ran away', 'runs away', 'took off', 'takes off', 'darted', 'darts', 'fled', 'flees', 'sprinted', 'legged it', 'shot off'],
     kind: 'behaviour', mobility: 1.4, hiding: 1.1,
     effect: 'left at speed, so the search area is wider',
   },
   {
-    any: ['spooked', 'panicked', 'panicking', 'terrified', 'frightened off', 'startled'],
+    any: ['spooked', 'spooks', 'panicked', 'panics', 'panicking', 'terrified', 'frightened off', 'startled', 'startles'],
     kind: 'behaviour', mobility: 1.3, hiding: 1.25,
     effect: 'frightened, so travels further and hides harder',
   },
   {
-    any: ['chased', 'chasing', 'someone chased', 'kids chased', 'being chased'],
+    any: ['chased', 'chases', 'chasing', 'someone chased', 'kids chased', 'being chased'],
     kind: 'behaviour', mobility: 1.45,
     effect: 'was chased, which pushes an animal much further out',
   },
@@ -93,15 +93,22 @@ const RULES: Rule[] = [
     effect: 'keeps away from people, so more likely to be hiding than walking',
   },
   {
-    any: ['hiding', 'hid', 'tucked', 'curled up', 'under a car', 'under the deck', 'under a deck', 'in a bush', 'went to ground'],
+    any: ['hiding', 'hides', 'hid', 'tucked', 'curled up', 'under a car', 'under the deck', 'under a deck', 'in a bush', 'went to ground'],
     kind: 'behaviour', hiding: 1.4,
     terrain: { 'dense-housing': 1.5, woodland: 1.3 },
     effect: 'already gone to ground, so cover is weighted up',
   },
 
+  {
+    any: ['food motivated', 'food-motivated', 'greedy', 'always hungry', 'will do anything for food', 'loves food'],
+    kind: 'behaviour', mobility: 0.85,
+    terrain: { commercial: 1.3, garden: 1.3 },
+    effect: 'food-motivated, so bins, compost and a tin left out draw them in',
+  },
+
   // Condition — an animal that cannot move far has not moved far.
   {
-    any: ['limping', 'limp', 'injured', 'hurt', 'bleeding', 'lame', 'sore', 'broken leg', 'hit by a car', 'unwell', 'sick'],
+    any: ['limping', 'limped', 'limps', 'limp', 'injured', 'hurt', 'bleeding', 'lame', 'sore', 'broken leg', 'hit by a car', 'unwell', 'sick'],
     kind: 'condition', mobility: 0.45, hiding: 1.3,
     effect: 'hurt, so cannot have got far and will be tucked out of sight',
   },
@@ -182,10 +189,29 @@ function escapeRe(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const NEGATORS = [
+  'do not', "don't", 'dont', 'does not', "doesn't", 'did not', "didn't",
+  'never', 'avoid', 'please do not', 'please avoid', 'will not', "won't",
+  'cannot', "can't", 'no need to', 'rather than', 'instead of', 'stop',
+];
+
+/**
+ * True when the words just before a match turn it into an instruction or a
+ * denial. Reports routinely say "please do not chase" and "he will not come",
+ * and reading either as evidence would move the map the wrong way.
+ */
+function isNegated(haystack: string, index: number): boolean {
+  const window = haystack.slice(Math.max(0, index - 28), index).toLowerCase();
+  return NEGATORS.some((neg) => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(neg)}[\\s\\p{L}]{0,12}$`, 'u').test(window));
+}
+
 /** Whole-word, case-insensitive. Multi-word phrases match across single spaces. */
 function findPhrase(haystack: string, phrase: string): boolean {
-  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(phrase).replace(/ /g, '\\s+')}(?![\\p{L}\\p{N}])`, 'iu');
-  return pattern.test(haystack);
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(phrase).replace(/ /g, '\\s+')}(?![\\p{L}\\p{N}])`, 'giu');
+  for (const match of haystack.matchAll(pattern)) {
+    if (!isNegated(haystack, match.index ?? 0)) return true;
+  }
+  return false;
 }
 
 export function readReport(...texts: (string | undefined | null)[]): ReadCues {

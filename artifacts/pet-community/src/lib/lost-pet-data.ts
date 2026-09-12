@@ -6,6 +6,7 @@
  * seeded ones, so a new report gets the same search map as an existing case.
  */
 
+import type { PortraitSpec } from '@/components/pet-portrait';
 import type { BuildSize, Sighting, Species, Temperament, Weather } from './lost-pet-model';
 import type { Vec } from './neighborhood-map';
 
@@ -33,6 +34,8 @@ export type LostCase = {
   status: 'Active' | 'Reunited';
   sightings: Sighting[];
   weather: Weather;
+  /** A likeness, so an alert reads as a missing animal rather than a form. */
+  portrait: PortraitSpec;
 };
 
 /**
@@ -70,6 +73,13 @@ export const LOST_CASES: LostCase[] = [
     contact: 'Message Rowan through PetCommunity',
     status: 'Active',
     weather: 'clear',
+    portrait: {
+      species: 'dog',
+      coat: { base: '#E4D2B4', shade: '#B58F5E', accent: '#8A5A33', bg: '#F6EBD7' },
+      marking: 'patch',
+      ears: 'folded',
+      mood: 'wary',
+    },
     sightings: [
       {
         id: 's1',
@@ -110,6 +120,13 @@ export const LOST_CASES: LostCase[] = [
     contact: 'Message Camille through PetCommunity',
     status: 'Active',
     weather: 'rain',
+    portrait: {
+      species: 'cat',
+      coat: { base: '#E3975C', shade: '#B97440', accent: '#A25A2A', bg: '#FAE9D5' },
+      marking: 'tabby',
+      ears: 'perky',
+      mood: 'wary',
+    },
     sightings: [],
   },
   {
@@ -133,6 +150,13 @@ export const LOST_CASES: LostCase[] = [
     contact: 'Reunited — thank you to everyone who looked',
     status: 'Reunited',
     weather: 'clear',
+    portrait: {
+      species: 'dog',
+      coat: { base: '#DFAE68', shade: '#B88742', accent: '#F5E8D0', bg: '#F8EEDB' },
+      marking: 'solid',
+      ears: 'floppy',
+      mood: 'bright',
+    },
     sightings: [
       {
         id: 's3',

@@ -1,5 +1,5 @@
 /**
- * Behavioural tests for the lost-pet search model.
+ * Behavioural tests for the lost-pet search model and the report reader.
  *
  * The model is not just "does it compile" code — it makes claims about how lost
  * animals behave, and those claims are what these assertions pin down: cats stay
@@ -7,11 +7,15 @@
  * suppress the ground beyond them, a credible sighting re-anchors the whole
  * field, and the search radius grows and then saturates rather than running away.
  *
+ * The last two groups cover the reader: what it takes from free text, and what
+ * that text then does to the map.
+ *
  * Run with:  pnpm --filter @workspace/pet-community run test:model
  */
 
 import { predict, peakProbability, type PredictionInput, type Sighting } from './lost-pet-model.ts';
 import { distance, terrainAt, type Vec } from './neighborhood-map.ts';
+import { readReport } from './report-reader.ts';
 
 let pass = 0, fail = 0;
 const results: string[] = [];
@@ -199,6 +203,110 @@ const base = (over: Partial<PredictionInput> = {}): PredictionInput => ({
   check('a week out still produces a valid field', approx(week.grid.cells.reduce((s, c) => s + c.p, 0), 1, 1e-9));
   check('a week out has lower confidence than an hour out',
     week.confidence.pct < predict(base({ minutesSinceLastSeen: 60 })).confidence.pct + 1);
+}
+
+// --- 13. reading the free text ---
+{
+  check('empty text yields no cues', readReport('').cues.length === 0);
+  check('unrecognised text yields no cues', readReport('He is a lovely boy and we miss him.').cues.length === 0);
+
+  const bolted = readReport('He bolted into the thicket when the van door slammed.');
+  check('"bolted" is picked up', bolted.cues.some(c => c.matched === 'bolted'), JSON.stringify(bolted.cues.map(c=>c.matched)));
+  check('"thicket" is picked up', bolted.cues.some(c => c.matched === 'thicket'));
+  check('bolting raises mobility', bolted.mobility > 1.2, `${bolted.mobility}`);
+  check('thicket biases woodland', (bolted.terrainBias.woodland ?? 1) > 1.4, `${bolted.terrainBias.woodland}`);
+
+  const hurt = readReport('She is limping badly on a front paw.');
+  check('injury lowers mobility sharply', hurt.mobility < 0.6, `${hurt.mobility}`);
+  check('injury raises hiding', hurt.hiding > 1.1);
+
+  check('matching is case-insensitive', readReport('HE BOLTED').cues.length === readReport('he bolted').cues.length);
+  check('matching is whole-word', readReport('The colt edged forward').cues.length === 0,
+    JSON.stringify(readReport('The colt edged forward').cues.map(c=>c.matched)));
+  check('reader is deterministic',
+    JSON.stringify(readReport('bolted north into the woods')) === JSON.stringify(readReport('bolted north into the woods')));
+
+  const dir = readReport('Last seen heading north up the path.');
+  check('a direction is read', dir.heading !== null && dir.heading.y > 0.9, JSON.stringify(dir.heading));
+  const ne = readReport('went north east toward the ridge');
+  check('compound directions beat simple ones', ne.heading !== null && ne.heading.x > 0.5 && ne.heading.y > 0.5,
+    JSON.stringify(ne.heading));
+
+  const named = readReport('I saw him near Willow Gate about an hour ago.');
+  check('a named landmark is read', named.places.some(p => p.name === 'Willow Gate'),
+    JSON.stringify(named.places.map(p=>p.name)));
+
+  check('crossing a road is read', readReport('He crossed the road by the shops').crossedRoad === true);
+  check('multipliers stay bounded',
+    readReport('bolted chased spooked panicked ran off').mobility <= 2.2);
+}
+
+// --- 14. what the text does to the map ---
+{
+  const plain = base({ minutesSinceLastSeen: 120, sightings: [] });
+  const at = (p: any, x: number, y: number) =>
+    p.grid.cells.reduce((best: any, c: any) =>
+      Math.hypot(c.x - x, c.y - y) < Math.hypot(best.x - x, best.y - y) ? c : best, p.grid.cells[0]);
+
+  check('no cues leaves the field identical',
+    JSON.stringify(predict(plain).grid.cells) === JSON.stringify(predict({ ...plain, cues: readReport('') }).grid.cells));
+
+  const bolted = predict({ ...plain, cues: readReport('He bolted and was chased by kids.') });
+  check('"bolted and chased" widens the search radius',
+    bolted.rings.p80 > predict(plain).rings.p80, `${predict(plain).rings.p80} -> ${bolted.rings.p80}`);
+
+  const hurt = predict({ ...plain, cues: readReport('He is limping and cannot run.') });
+  check('"limping" tightens the search radius',
+    hurt.rings.p80 < predict(plain).rings.p80, `${predict(plain).rings.p80} -> ${hurt.rings.p80}`);
+
+  // Anchor is (-120,190). Willow Gate thicket is woodland just west/north of it;
+  // Riverside meadow is open ground to the east at the same sort of distance.
+  const woods = predict({ ...plain, cues: readReport('went into the thicket') });
+  const woodCell = { x: -120, y: 300 };
+  const openCell = { x: 110, y: 300 };
+  check('comparison cells are woodland and open',
+    terrainAt(woodCell) === 'woodland' && terrainAt(openCell) === 'open');
+  const ratioPlain = at(predict(plain), woodCell.x, woodCell.y).p / at(predict(plain), openCell.x, openCell.y).p;
+  const ratioWoods = at(woods, woodCell.x, woodCell.y).p / at(woods, openCell.x, openCell.y).p;
+  check('"thicket" shifts weight from open ground to woodland',
+    ratioWoods > ratioPlain * 1.3, `plain=${ratioPlain.toFixed(2)} woods=${ratioWoods.toFixed(2)}`);
+
+  const north = predict({ ...plain, cues: readReport('last seen heading north') });
+  const massNorth = (pr: any) => pr.grid.cells.filter((c: any) => c.y > 260).reduce((s: number, c: any) => s + c.p, 0);
+  const massSouth = (pr: any) => pr.grid.cells.filter((c: any) => c.y < 120).reduce((s: number, c: any) => s + c.p, 0);
+  check('"heading north" leans the field north',
+    massNorth(north) / massSouth(north) > massNorth(predict(plain)) / massSouth(predict(plain)) * 1.2,
+    `plain=${(massNorth(predict(plain))/massSouth(predict(plain))).toFixed(2)} north=${(massNorth(north)/massSouth(north)).toFixed(2)}`);
+
+  check('"heading north" also damps the ground behind',
+    massSouth(north) < massSouth(predict(plain)),
+    `${massSouth(predict(plain)).toFixed(4)} -> ${massSouth(north).toFixed(4)}`);
+  check('a stated direction moves the top zone that way',
+    predict({ ...plain, cues: readReport('bolted north into the thicket') }).zones[0].centre.y > plain.lastSeen.y,
+    `${predict({ ...plain, cues: readReport('bolted north into the thicket') }).zones[0].place}`);
+
+  const depot = predict({ ...plain, cues: readReport('someone saw him by the rail depot') });
+  const nearDepot = (pr: any) => pr.grid.cells.filter((c: any) => Math.hypot(c.x - 400, c.y + 235) < 130).reduce((s: number, c: any) => s + c.p, 0);
+  check('naming a landmark pulls mass towards it',
+    nearDepot(depot) > nearDepot(predict(plain)) * 1.5,
+    `${nearDepot(predict(plain)).toExponential(2)} -> ${nearDepot(depot).toExponential(2)}`);
+
+  const crossed = predict({ ...plain, cues: readReport('he crossed the road') });
+  // Shares of a normalised field cannot grow without bound, so compare the odds
+  // of the far side against the near side — that is what the penalty multiplies.
+  const southOdds = (pr: any) => {
+    const south = pr.grid.cells.filter((c: any) => c.y < -60).reduce((s: number, c: any) => s + c.p, 0);
+    return south / (1 - south);
+  };
+  check('"crossed the road" stops discounting the far side',
+    southOdds(crossed) > southOdds(predict(plain)) * 1.6,
+    `odds ${southOdds(predict(plain)).toFixed(3)} -> ${southOdds(crossed).toFixed(3)}`);
+
+  check('the cue is reported back to the reader',
+    bolted.drivers.some(d => d.label === 'Read from what people wrote' && d.detail.includes('bolted')));
+
+  check('field stays normalised with cues applied',
+    Math.abs(bolted.grid.cells.reduce((s, c) => s + c.p, 0) - 1) < 1e-9);
 }
 
 console.log(results.join('\n'));

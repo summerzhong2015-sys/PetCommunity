@@ -22,6 +22,7 @@ import {
   Layers,
   MapPin,
   Radar,
+  ScanText,
   Sparkles,
   Sun,
   Target,
@@ -31,6 +32,8 @@ import { SearchMap, SearchMapLegend } from '@/components/search-map';
 import { PageHeader, Stat, useStored, useTicker, type Notify } from '@/components/page-bits';
 import { findCase, minutesMissing, timeOfDayNow } from '@/lib/lost-pet-data';
 import { formatAge, predict, type Sighting, type Weather } from '@/lib/lost-pet-model';
+import { readReport } from '@/lib/report-reader';
+import { PetPortrait } from '@/components/pet-portrait';
 import { nearestLandmark, type Vec } from '@/lib/neighborhood-map';
 
 type StoredSighting = {
@@ -89,8 +92,15 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
     // `tick` is intentionally a dependency: it is what keeps the ages current.
   }, [item, extra, lookahead, tick]);
 
-  const prediction = useMemo(() => {
+  // Everything anyone has typed about this animal, read for behaviour, terrain,
+  // direction and named places.
+  const cues = useMemo(() => {
     if (!item) return null;
+    return readReport(item.description, item.markings, ...sightings.map((s) => s.note));
+  }, [item, sightings]);
+
+  const prediction = useMemo(() => {
+    if (!item || !cues) return null;
     return predict({
       name: item.petName,
       species: item.species,
@@ -102,10 +112,11 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
       sightings,
       weather,
       timeOfDay: timeOfDayNow(new Date(Date.now() + lookahead * 60000)),
+      cues,
     });
-  }, [item, sightings, weather, lookahead, tick]);
+  }, [item, cues, sightings, weather, lookahead, tick]);
 
-  if (!item || !prediction) {
+  if (!item || !prediction || !cues) {
     return (
       <main className="page-wrap py-24 text-center">
         <p className="eyebrow">No such alert</p>
@@ -164,9 +175,12 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
         }
         description={`${item.breed}. ${item.description}`}
         action={
-          <Link href="/lost-pets" className="action-button button-quiet" data-testid="link-all-alerts">
-            <ArrowLeft size={16} /> All alerts
-          </Link>
+          <div className="flex items-center gap-4">
+            <PetPortrait spec={item.portrait} className="w-20 h-20 shrink-0" rounded={30} />
+            <Link href="/lost-pets" className="action-button button-quiet" data-testid="link-all-alerts">
+              <ArrowLeft size={16} /> All alerts
+            </Link>
+          </div>
         }
       />
 
@@ -438,6 +452,39 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
                   </li>
                 ))}
               </ul>
+            </div>
+
+            <div className="paper-card p-5 md:p-6">
+              <p className="eyebrow">Read from the words, not the form</p>
+              <h2 className="serif text-2xl mt-1 mb-2">What the descriptions told us</h2>
+              {cues.cues.length === 0 ? (
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Nothing in the text changed the map yet. Phrases like &ldquo;bolted&rdquo;, &ldquo;limping&rdquo;,
+                  &ldquo;heading north&rdquo;, &ldquo;into the thicket&rdquo; or a street name all move it — the more
+                  specific a sighting note is, the more it is worth.
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                    Picked out of the report and the sighting notes. Each one shifted the map.
+                  </p>
+                  <ul className="space-y-2.5">
+                    {cues.cues.map((cue, i) => (
+                      <li key={`${cue.matched}-${i}`} className="flex gap-2.5 text-sm" data-testid={`cue-${i}`}>
+                        <ScanText size={15} className="text-primary shrink-0 mt-0.5" />
+                        <span>
+                          <strong className="mono text-xs bg-secondary rounded px-1.5 py-0.5">{cue.matched}</strong>{' '}
+                          <span className="text-muted-foreground">— {cue.effect}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-border">
+                    This matches known phrases rather than understanding the sentence, so it will miss an unusual
+                    wording. Everything it did use is listed above — nothing is applied silently.
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="paper-card p-5 md:p-6">

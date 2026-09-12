@@ -19,6 +19,8 @@ import {
   MapPin,
   Send,
   ShieldCheck,
+  ClipboardList,
+  HandHeart,
   Sparkles,
   X,
 } from 'lucide-react';
@@ -68,12 +70,11 @@ export function Adopt({ notify }: { notify: Notify }) {
     });
   }
 
-  function sendEnquiry(event: FormEvent, pet: AdoptablePet) {
-    event.preventDefault();
+  function sendApplication(pet: AdoptablePet) {
     setEnquired([...new Set([...enquired, pet.id])]);
     notify({
       tone: 'success',
-      text: `Your note about ${pet.name} has gone to ${shelterOf(pet).name}. They usually reply within two days.`,
+      text: `Your application for ${pet.name} has gone to ${shelterOf(pet).name}. They usually reply within two days.`,
     });
   }
 
@@ -236,7 +237,7 @@ export function Adopt({ notify }: { notify: Notify }) {
             onSave={() => toggleSave(open)}
             isSaved={saved.includes(open.id)}
             hasEnquired={enquired.includes(open.id)}
-            onEnquire={(e) => sendEnquiry(e, open)}
+            onApply={() => sendApplication(open)}
           />
         )}
 
@@ -273,16 +274,41 @@ function PetDetail({
   onSave,
   isSaved,
   hasEnquired,
-  onEnquire,
+  onApply,
 }: {
   pet: AdoptablePet;
   onClose: () => void;
   onSave: () => void;
   isSaved: boolean;
   hasEnquired: boolean;
-  onEnquire: (event: FormEvent) => void;
+  onApply: () => void;
 }) {
   const shelter = shelterOf(pet);
+  const [application, setApplication] = useState({
+    name: '',
+    contact: '',
+    home: 'house' as 'house' | 'flat' | 'other',
+    garden: 'enclosed' as 'enclosed' | 'shared' | 'none',
+    adults: '2',
+    children: '',
+    otherPets: '',
+    aloneHours: '4',
+    experience: '',
+    why: '',
+    meet: '',
+  });
+  const [missing, setMissing] = useState<string[]>([]);
+
+  function submitApplication(event: FormEvent) {
+    event.preventDefault();
+    const gaps = [
+      !application.name.trim() && 'your name',
+      !application.contact.trim() && 'a way to reach you',
+      !application.why.trim() && `why ${pet.name}`,
+    ].filter(Boolean) as string[];
+    setMissing(gaps);
+    if (gaps.length === 0) onApply();
+  }
   return (
     <div className="paper-card p-6 reveal" data-testid={`panel-pet-${pet.id}`}>
       <div className="flex justify-between items-start gap-4">
@@ -351,29 +377,176 @@ function PetDetail({
       {hasEnquired ? (
         <div className="mt-6 pt-5 border-t border-border flex items-start gap-3" data-testid={`enquiry-sent-${pet.id}`}>
           <CheckCircle2 size={18} className="text-primary shrink-0 mt-0.5" />
-          <p className="text-sm leading-relaxed">
-            Your enquiry about {pet.name} is with {shelter.name}. They will usually come back within two days, and will
-            ask about your home, your hours and anyone else living there — not to catch you out, but because a match
-            that lasts is the whole point.
-          </p>
+          <div>
+            <p className="text-sm leading-relaxed">
+              Your application for {pet.name} is with {shelter.name}. They usually come back within two days, and will
+              want a phone call and a home visit before anything is decided — not to catch you out, but because a match
+              that lasts is the whole point.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Nothing is committed yet. You can still meet other animals, and they will tell you honestly if {pet.name}{' '}
+              is not the right fit.
+            </p>
+          </div>
         </div>
       ) : (
-        <form onSubmit={onEnquire} className="mt-6 pt-5 border-t border-border" data-testid={`form-enquiry-${pet.id}`}>
-          <p className="eyebrow">Ask about {pet.name}</p>
-          <textarea
-            rows={3}
-            className="field mt-2"
-            placeholder={`Tell them a little about your home. Who lives there, what your days look like, whether you have had a ${pet.species} before.`}
-            data-testid={`input-enquiry-${pet.id}`}
-          />
-          <div className="flex flex-wrap gap-2 mt-3">
-            <button type="submit" className="action-button button-primary" data-testid={`button-enquire-${pet.id}`}>
+        <form onSubmit={submitApplication} className="mt-6 pt-5 border-t border-border" data-testid={`form-application-${pet.id}`}>
+          <p className="eyebrow inline-flex items-center gap-1.5">
+            <ClipboardList size={13} /> Apply to adopt {pet.name}
+          </p>
+          <p className="text-sm text-muted-foreground mt-2 mb-4 leading-relaxed">
+            This is what {shelter.name} asks anyway. Answer honestly rather than ideally — they are matching an animal to
+            a life, and the wrong match comes back.
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="text-xs font-bold">
+              Your name <span className="text-destructive">*</span>
+              <input
+                className="field mt-1"
+                value={application.name}
+                onChange={(e) => setApplication({ ...application, name: e.target.value })}
+                data-testid={`input-app-name-${pet.id}`}
+              />
+            </label>
+            <label className="text-xs font-bold">
+              Phone or email <span className="text-destructive">*</span>
+              <input
+                className="field mt-1"
+                value={application.contact}
+                onChange={(e) => setApplication({ ...application, contact: e.target.value })}
+                data-testid={`input-app-contact-${pet.id}`}
+              />
+            </label>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3 mt-3">
+            <label className="text-xs font-bold">
+              Where you live
+              <select
+                className="field mt-1"
+                value={application.home}
+                onChange={(e) => setApplication({ ...application, home: e.target.value as typeof application.home })}
+                data-testid={`select-app-home-${pet.id}`}
+              >
+                <option value="house">House</option>
+                <option value="flat">Flat or apartment</option>
+                <option value="other">Something else</option>
+              </select>
+            </label>
+            <label className="text-xs font-bold">
+              Outside space
+              <select
+                className="field mt-1"
+                value={application.garden}
+                onChange={(e) => setApplication({ ...application, garden: e.target.value as typeof application.garden })}
+                data-testid={`select-app-garden-${pet.id}`}
+              >
+                <option value="enclosed">Enclosed garden</option>
+                <option value="shared">Shared or open garden</option>
+                <option value="none">No garden</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-3 mt-3">
+            <label className="text-xs font-bold">
+              Adults at home
+              <input
+                type="number"
+                min={1}
+                className="field mt-1"
+                value={application.adults}
+                onChange={(e) => setApplication({ ...application, adults: e.target.value })}
+                data-testid={`input-app-adults-${pet.id}`}
+              />
+            </label>
+            <label className="text-xs font-bold">
+              Children, and ages
+              <input
+                className="field mt-1"
+                placeholder="None, or 7 and 11"
+                value={application.children}
+                onChange={(e) => setApplication({ ...application, children: e.target.value })}
+                data-testid={`input-app-children-${pet.id}`}
+              />
+            </label>
+            <label className="text-xs font-bold">
+              Hours alone on a normal day
+              <input
+                type="number"
+                min={0}
+                max={24}
+                className="field mt-1"
+                value={application.aloneHours}
+                onChange={(e) => setApplication({ ...application, aloneHours: e.target.value })}
+                data-testid={`input-app-alone-${pet.id}`}
+              />
+            </label>
+          </div>
+
+          <label className="block text-xs font-bold mt-3">
+            Other animals at home
+            <input
+              className="field mt-1"
+              placeholder="None, or a nine-year-old cat who dislikes dogs"
+              value={application.otherPets}
+              onChange={(e) => setApplication({ ...application, otherPets: e.target.value })}
+              data-testid={`input-app-pets-${pet.id}`}
+            />
+          </label>
+
+          <label className="block text-xs font-bold mt-3">
+            Have you had a {pet.species} before?
+            <input
+              className="field mt-1"
+              placeholder="What happened to them is useful too, even if it was hard"
+              value={application.experience}
+              onChange={(e) => setApplication({ ...application, experience: e.target.value })}
+              data-testid={`input-app-experience-${pet.id}`}
+            />
+          </label>
+
+          <label className="block text-xs font-bold mt-3">
+            Why {pet.name}? <span className="text-destructive">*</span>
+            <textarea
+              rows={3}
+              className="field mt-1"
+              placeholder={`What drew you to ${pet.name} in particular, and how ${pet.name} would fit the way your week actually runs.`}
+              value={application.why}
+              onChange={(e) => setApplication({ ...application, why: e.target.value })}
+              data-testid={`input-app-why-${pet.id}`}
+            />
+          </label>
+
+          <label className="block text-xs font-bold mt-3">
+            When could you come and meet?
+            <input
+              className="field mt-1"
+              placeholder="Saturday mornings, or most weekday evenings after six"
+              value={application.meet}
+              onChange={(e) => setApplication({ ...application, meet: e.target.value })}
+              data-testid={`input-app-meet-${pet.id}`}
+            />
+          </label>
+
+          {missing.length > 0 && (
+            <p className="alert-banner rounded-xl p-3 text-sm mt-4" role="alert" data-testid={`error-app-${pet.id}`}>
+              Still needed: {missing.join(', ')}.
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2 mt-4">
+            <button type="submit" className="action-button button-primary" data-testid={`button-apply-${pet.id}`}>
               <Send size={16} /> Send to {shelter.name.split(' ')[0]}
             </button>
             <button type="button" onClick={onSave} className="action-button button-quiet" data-testid={`button-shortlist-${pet.id}`}>
               <Heart size={16} fill={isSaved ? 'currentColor' : 'none'} /> {isSaved ? 'On your shortlist' : 'Save for later'}
             </button>
           </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Sending this does not commit you to anything. It starts a conversation.
+          </p>
         </form>
       )}
     </div>
@@ -421,9 +594,97 @@ function waitWeeks(pet: AdoptablePet): number {
   return unit === 'week' ? n : unit === 'month' ? n * 4.35 : n * 52;
 }
 
+function HelpSignUp({
+  shelter,
+  onDone,
+}: {
+  shelter: (typeof SHELTERS)[number];
+  onDone: (chosen: string[]) => void;
+}) {
+  // Fostering is the thing every one of them is short of, so it is always offered.
+  const options = [...shelter.volunteering, 'Foster an animal for a few weeks'];
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [name, setName] = useState('');
+  const [contact, setContact] = useState('');
+  const [when, setWhen] = useState('');
+  const [error, setError] = useState('');
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (chosen.length === 0) {
+      setError('Pick at least one thing you could help with.');
+      return;
+    }
+    if (!name.trim() || !contact.trim()) {
+      setError('They need a name and a way to reach you.');
+      return;
+    }
+    setError('');
+    onDone(chosen);
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-5 pt-5 border-t border-border" data-testid={`form-help-${shelter.id}`}>
+      <p className="eyebrow inline-flex items-center gap-1.5">
+        <HandHeart size={13} /> Offer a hand
+      </p>
+      <p className="text-sm text-muted-foreground mt-2 mb-3 leading-relaxed">
+        No commitment and no minimum. Say what you could do and they will work around you.
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((option) => {
+          const on = chosen.includes(option);
+          return (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={on}
+              onClick={() => setChosen(on ? chosen.filter((c) => c !== option) : [...chosen, option])}
+              className={`tag ${on ? 'bg-primary text-primary-foreground' : ''}`}
+              data-testid={`button-help-option-${shelter.id}-${option.slice(0, 12).replace(/\W+/g, '-').toLowerCase()}`}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+      <div className="grid sm:grid-cols-3 gap-3 mt-4">
+        <label className="text-xs font-bold">
+          Your name
+          <input className="field mt-1" value={name} onChange={(e) => setName(e.target.value)} data-testid={`input-help-name-${shelter.id}`} />
+        </label>
+        <label className="text-xs font-bold">
+          Phone or email
+          <input className="field mt-1" value={contact} onChange={(e) => setContact(e.target.value)} data-testid={`input-help-contact-${shelter.id}`} />
+        </label>
+        <label className="text-xs font-bold">
+          When you are free
+          <input
+            className="field mt-1"
+            placeholder="Saturday mornings"
+            value={when}
+            onChange={(e) => setWhen(e.target.value)}
+            data-testid={`input-help-when-${shelter.id}`}
+          />
+        </label>
+      </div>
+      {error && (
+        <p className="alert-banner rounded-xl p-3 text-sm mt-3" role="alert" data-testid={`error-help-${shelter.id}`}>
+          {error}
+        </p>
+      )}
+      <button type="submit" className="action-button button-primary mt-4" data-testid={`button-help-submit-${shelter.id}`}>
+        <Send size={16} /> Send to {shelter.name.split(' ')[0]}
+      </button>
+    </form>
+  );
+}
+
 /** The shelters page: who they are, when to visit, and what they need. */
 export function Shelters({ notify }: { notify: Notify }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [helpingId, setHelpingId] = useState<string | null>(null);
+  const [signedUp, setSignedUp] = useStored<string[]>('pc-volunteering', []);
 
   return (
     <main>
@@ -498,6 +759,30 @@ export function Shelters({ notify }: { notify: Notify }) {
                 </div>
               )}
 
+              {signedUp.includes(shelter.id) ? (
+                <p className="mt-5 pt-5 border-t border-border text-sm flex items-start gap-2.5" data-testid={`help-sent-${shelter.id}`}>
+                  <CheckCircle2 size={17} className="text-primary shrink-0 mt-0.5" />
+                  <span>
+                    {shelter.name} has your offer. Someone will be in touch about the next rota — {shelter.phone} if you
+                    want to chase it.
+                  </span>
+                </p>
+              ) : (
+                helpingId === shelter.id && (
+                  <HelpSignUp
+                    shelter={shelter}
+                    onDone={(chosen) => {
+                      setSignedUp([...signedUp, shelter.id]);
+                      setHelpingId(null);
+                      notify({
+                        tone: 'success',
+                        text: `${shelter.name} has your offer to help with ${chosen.length} thing${chosen.length === 1 ? '' : 's'}.`,
+                      });
+                    }}
+                  />
+                )
+              )}
+
               <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-4 border-t border-border">
                 <span className="text-xs text-muted-foreground">
                   <strong className="text-primary">{shelter.animalsInCare}</strong> in care
@@ -511,6 +796,18 @@ export function Shelters({ notify }: { notify: Notify }) {
                   >
                     {open ? 'Show less' : 'What they need'}
                   </button>
+                  {!signedUp.includes(shelter.id) && (
+                    <button
+                      onClick={() => {
+                        setHelpingId(helpingId === shelter.id ? null : shelter.id);
+                        setOpenId(shelter.id);
+                      }}
+                      className="text-xs font-bold text-primary"
+                      data-testid={`button-shelter-help-${shelter.id}`}
+                    >
+                      {helpingId === shelter.id ? 'Never mind' : 'Offer a hand'}
+                    </button>
+                  )}
                   <button
                     onClick={() =>
                       notify({ tone: 'info', text: `${shelter.name} added to your visit list — ${shelter.hours}.` })

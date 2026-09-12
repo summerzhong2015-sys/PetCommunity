@@ -18,6 +18,15 @@ import {
 } from 'lucide-react';
 import { EmptyState, PageHeader, useTicker, type Notify } from '@/components/page-bits';
 import {
+  COAT_PRESETS,
+  DEFAULT_PORTRAIT,
+  EAR_OPTIONS,
+  MARKING_OPTIONS,
+  MOOD_OPTIONS,
+  PetPortrait,
+  type PortraitSpec,
+} from '@/components/pet-portrait';
+import {
   LOST_CASES,
   loadUserCases,
   minutesMissing,
@@ -49,6 +58,7 @@ export function LostPets({ notify }: { notify: Notify }) {
     description: '',
     contact: '',
   });
+  const [portrait, setPortrait] = useState<PortraitSpec>(DEFAULT_PORTRAIT);
 
   const cases = useMemo(() => {
     const all = [...userCases, ...LOST_CASES];
@@ -91,6 +101,7 @@ export function LostPets({ notify }: { notify: Notify }) {
       status: 'Active',
       sightings: [],
       weather: 'clear',
+      portrait: { ...portrait, species: form.species },
     };
     const next = [created, ...userCases];
     setUserCases(next);
@@ -175,7 +186,14 @@ export function LostPets({ notify }: { notify: Notify }) {
                   <button
                     key={s}
                     type="button"
-                    onClick={() => setForm({ ...form, species: s })}
+                    onClick={() => {
+                      setForm({ ...form, species: s });
+                      setPortrait((current) => ({
+                        ...current,
+                        species: s,
+                        ears: s === 'cat' ? 'perky' : current.ears,
+                      }));
+                    }}
                     aria-pressed={form.species === s}
                     className={`tag ${form.species === s ? 'bg-primary text-primary-foreground' : ''}`}
                     data-testid={`button-species-${s}`}
@@ -262,6 +280,88 @@ export function LostPets({ notify }: { notify: Notify }) {
               </label>
             </div>
 
+            <fieldset className="mt-5 pt-5 border-t border-border">
+              <legend className="eyebrow mb-3">
+                Draw a likeness. A picture is what people actually recognise in the street.
+              </legend>
+              <div className="grid sm:grid-cols-[128px_1fr] gap-5 items-start">
+                <PetPortrait spec={{ ...portrait, species: form.species }} className="w-32 h-32 mx-auto sm:mx-0" />
+                <div className="grid gap-4">
+                  <div>
+                    <p className="eyebrow mb-2">Colour</p>
+                    <div className="flex flex-wrap gap-2">
+                      {COAT_PRESETS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => setPortrait({ ...portrait, coat: preset.coat })}
+                          aria-label={preset.name}
+                          aria-pressed={portrait.coat.base === preset.coat.base}
+                          title={preset.name}
+                          className={`w-9 h-9 rounded-full border-2 ${portrait.coat.base === preset.coat.base ? 'border-primary' : 'border-transparent'}`}
+                          style={{ background: preset.coat.base }}
+                          data-testid={`button-coat-${preset.id}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="eyebrow mb-2">Markings</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {MARKING_OPTIONS.map((o) => (
+                        <button
+                          key={o.value}
+                          type="button"
+                          onClick={() => setPortrait({ ...portrait, marking: o.value })}
+                          aria-pressed={portrait.marking === o.value}
+                          className={`tag ${portrait.marking === o.value ? 'bg-primary text-primary-foreground' : ''}`}
+                          data-testid={`button-marking-${o.value}`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {form.species === 'dog' && (
+                    <div>
+                      <p className="eyebrow mb-2">Ears</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {EAR_OPTIONS.map((o) => (
+                          <button
+                            key={o.value}
+                            type="button"
+                            onClick={() => setPortrait({ ...portrait, ears: o.value })}
+                            aria-pressed={portrait.ears === o.value}
+                            className={`tag ${portrait.ears === o.value ? 'bg-primary text-primary-foreground' : ''}`}
+                            data-testid={`button-ears-${o.value}`}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <p className="eyebrow mb-2">Expression</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {MOOD_OPTIONS.map((o) => (
+                        <button
+                          key={o.value}
+                          type="button"
+                          onClick={() => setPortrait({ ...portrait, mood: o.value })}
+                          aria-pressed={portrait.mood === o.value}
+                          className={`tag ${portrait.mood === o.value ? 'bg-primary text-primary-foreground' : ''}`}
+                          data-testid={`button-mood-${o.value}`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+
             <label className="block text-xs font-bold mt-4">
               Markings
               <input
@@ -331,10 +431,13 @@ export function LostPets({ notify }: { notify: Notify }) {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex gap-3">
-                    <span
-                      className={`grid place-items-center w-11 h-11 rounded-2xl ${item.status === 'Active' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}
-                    >
-                      {item.status === 'Active' ? <AlertTriangle size={21} /> : <CheckCircle2 size={21} />}
+                    <span className="relative shrink-0">
+                      <PetPortrait spec={item.portrait} className="w-14 h-14" rounded={22} />
+                      <span
+                        className={`absolute -bottom-1 -right-1 grid place-items-center w-6 h-6 rounded-full border-2 border-card ${item.status === 'Active' ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'}`}
+                      >
+                        {item.status === 'Active' ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
+                      </span>
                     </span>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">

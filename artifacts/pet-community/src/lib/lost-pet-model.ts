@@ -41,6 +41,7 @@ import {
   type TerrainKind,
   type Vec,
 } from './neighborhood-map.ts';
+import { NO_CUES, type ReadCues } from './report-reader.ts';
 
 export type Species = 'dog' | 'cat';
 export type BuildSize = 'small' | 'medium' | 'large';
@@ -69,6 +70,11 @@ export type PredictionInput = {
   sightings: Sighting[];
   weather: Weather;
   timeOfDay: TimeOfDay;
+  /**
+   * What the free text in the report and the sightings said, as read by
+   * `readReport`. Omitted means nothing was read and nothing changes.
+   */
+  cues?: ReadCues;
 };
 
 export type Cell = {
@@ -211,6 +217,7 @@ export function predict(input: PredictionInput): Prediction {
   const profile = SPECIES[input.species];
   const temperament = TEMPERAMENT[input.temperament];
   const weather = WEATHER[input.weather];
+  const cues = input.cues ?? NO_CUES;
 
   // A recent, credible sighting is a better starting point than the original
   // last-seen report, so the model re-anchors on it and restarts the clock.
@@ -221,7 +228,7 @@ export function predict(input: PredictionInput): Prediction {
   const sizeFactor = input.species === 'dog' ? SIZE_RANGE[input.size] : 1;
   const activity = TIME_OF_DAY[input.timeOfDay][input.species];
   const maxRange =
-    profile.maxRange * sizeFactor * temperament.range * weather.range * activity;
+    profile.maxRange * sizeFactor * temperament.range * weather.range * activity * cues.mobility;
 
   // Displacement grows quickly at first and then flattens off as the animal
   // tires and settles, rather than running away forever.
@@ -229,7 +236,11 @@ export function predict(input: PredictionInput): Prediction {
   // Rayleigh scale: the mean of the distribution is scale * sqrt(pi/2).
   const scale = Math.max(20, reach / 1.2533);
 
-  const hideWeight = clamp(profile.hideWeight * temperament.hide * weather.hide, 0.05, 0.85);
+  const hideWeight = clamp(
+    profile.hideWeight * temperament.hide * weather.hide * cues.hiding,
+    0.05,
+    0.85,
+  );
   const hideSigma = profile.hideSigma * (input.species === 'cat' ? 1 : sizeFactor);
   // A frightened animal is pulled into cover much harder than a bold one.
   const coverPull = 0.55 + 0.95 * hideWeight;
@@ -258,7 +269,8 @@ export function predict(input: PredictionInput): Prediction {
 
       // 2. Terrain — would it stop somewhere like this?
       const kind = terrainAt(p);
-      const fit = TERRAIN_FIT[input.species][kind];
+      // The text can point at particular ground — "into the thicket", "under a deck".
+      const fit = TERRAIN_FIT[input.species][kind] * (cues.terrainBias[kind] ?? 1);
       const coverBoost = kind === 'woodland' || kind === 'dense-housing' || kind === 'industrial'
         ? weather.cover
         : 1;
@@ -271,9 +283,15 @@ export function predict(input: PredictionInput): Prediction {
       }
 
       // 3. Barriers — discount for everything it had to cross to get here.
+      // A report saying it is already across a road beats the prior that says
+      // it probably is not, so the road penalty is softened rather than dropped.
       for (const barrier of BARRIERS) {
         const n = crossingsOf(anchor, p, barrier);
-        if (n > 0) value *= Math.pow(PERMEABILITY[barrier.kind][input.species], n);
+        if (n === 0) continue;
+        const base = PERMEABILITY[barrier.kind][input.species];
+        const permeability =
+          cues.crossedRoad && barrier.kind === 'major-road' ? Math.min(0.9, base + 0.5) : base;
+        value *= Math.pow(permeability, n);
       }
 
       // 4. Attractors — food, water, cover, and the pull of home.
@@ -285,7 +303,21 @@ export function predict(input: PredictionInput): Prediction {
       }
       const dHome = distance(input.home, p);
       pull += homeWeight * Math.exp(-(dHome * dHome) / (2 * 120 * 120));
+
+      // Places the text named by name.
+      for (const place of cues.places) {
+        const dp = distance(place.at, p);
+        pull += 1.1 * Math.exp(-(dp * dp) / (2 * 100 * 100));
+      }
       value *= pull;
+
+      // A stated direction of travel is strong evidence, so it lifts the ground
+      // ahead and damps the ground behind — without cutting either off, because
+      // animals turn and reports are approximate.
+      if (cues.heading && d > 35) {
+        const along = ((p.x - anchor.x) * cues.heading.x + (p.y - anchor.y) * cues.heading.y) / d;
+        value *= along >= 0 ? 1 + 2.2 * along * along : 1 - 0.5 * along * along;
+      }
 
       // 5. Sightings — the strongest evidence there is.
       for (const s of input.sightings) {
@@ -308,6 +340,7 @@ export function predict(input: PredictionInput): Prediction {
   const rings = containmentRings(cells, anchor);
   const confidence = scoreConfidence(input, effectiveMinutes, zones);
   const drivers = describeDrivers(input, {
+    cues,
     reach,
     hideWeight,
     effectiveMinutes,
@@ -506,6 +539,7 @@ function scoreConfidence(
 function describeDrivers(
   input: PredictionInput,
   ctx: {
+    cues: ReadCues;
     reach: number;
     hideWeight: number;
     effectiveMinutes: number;
@@ -553,6 +587,14 @@ function describeDrivers(
       label: 'No sightings yet',
       detail: 'Nothing has been reported, so this is behaviour and terrain only. The first confirmed sighting will redraw the map.',
       weight: 0.5,
+    });
+  }
+
+  if (ctx.cues.cues.length > 0) {
+    drivers.push({
+      label: 'Read from what people wrote',
+      detail: `${ctx.cues.cues.map((c) => `"${c.matched}" — ${c.effect}`).join('; ')}.`,
+      weight: 0.98,
     });
   }
 

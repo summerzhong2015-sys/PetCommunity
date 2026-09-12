@@ -35,6 +35,7 @@ import {
 } from '@/lib/lost-pet-data';
 import { formatAge, type BuildSize, type Species, type Temperament } from '@/lib/lost-pet-model';
 import { LANDMARKS } from '@/lib/neighborhood-map';
+import { isProfileSet, type PetProfile } from '@/lib/profile';
 
 const TEMPERAMENTS: { value: Temperament; label: string; hint: string }[] = [
   { value: 'friendly', label: 'Confident', hint: 'Goes up to strangers' },
@@ -42,23 +43,27 @@ const TEMPERAMENTS: { value: Temperament; label: string; hint: string }[] = [
   { value: 'skittish', label: 'Panics', hint: 'Bolts if approached' },
 ];
 
-export function LostPets({ notify }: { notify: Notify }) {
+export function LostPets({ notify, profile }: { notify: Notify; profile?: PetProfile }) {
+  // A report filed about your own animal should not make you retype what the
+  // profile already knows.
+  const prefill = profile && isProfileSet(profile) ? profile : null;
   const tick = useTicker(30000);
   const [userCases, setUserCases] = useState<LostCase[]>(() => loadUserCases());
   const [reportOpen, setReportOpen] = useState(false);
+  const homeLandmark = LANDMARKS.find((l) => l.name === prefill?.neighbourhood) ?? LANDMARKS[7];
   const [form, setForm] = useState({
-    petName: '',
-    breed: '',
-    species: 'dog' as Species,
+    petName: prefill?.petName ?? '',
+    breed: prefill?.breed ?? '',
+    species: (prefill?.petType ?? 'dog') as Species,
     size: 'medium' as BuildSize,
     temperament: 'shy' as Temperament,
     lastSeenId: LANDMARKS[0].id,
-    homeId: LANDMARKS[7].id,
+    homeId: homeLandmark.id,
     markings: '',
-    description: '',
+    description: prefill?.bio ?? '',
     contact: '',
   });
-  const [portrait, setPortrait] = useState<PortraitSpec>(DEFAULT_PORTRAIT);
+  const [portrait, setPortrait] = useState<PortraitSpec>(prefill?.portrait ?? DEFAULT_PORTRAIT);
 
   const cases = useMemo(() => {
     const all = [...userCases, ...LOST_CASES];
@@ -95,8 +100,8 @@ export function LostPets({ notify }: { notify: Notify }) {
       description: form.description.trim(),
       markings: form.markings.trim() || 'No distinguishing marks given',
       microchipped: false,
-      owner: 'You',
-      ownerInitials: 'YOU',
+      owner: prefill?.username ?? 'You',
+      ownerInitials: (prefill?.username ?? 'You').slice(0, 2).toUpperCase(),
       contact: form.contact.trim() || 'Message through PetCommunity',
       status: 'Active',
       sightings: [],
@@ -150,6 +155,11 @@ export function LostPets({ notify }: { notify: Notify }) {
               <div>
                 <p className="eyebrow text-destructive">New alert</p>
                 <h2 className="serif text-2xl mt-1">Tell the circle what to look for.</h2>
+                {prefill && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Filled in from your profile — change anything that is wrong.
+                  </p>
+                )}
               </div>
               <button type="button" onClick={() => setReportOpen(false)} aria-label="Close form" data-testid="button-close-lost-form">
                 <X size={18} />

@@ -37,6 +37,16 @@ build back to pnpm 6.
 `PORT` and `BASE_PATH` are read from the environment when present (Replit sets
 them) and otherwise default to 5173 and `/`.
 
+### Tests
+
+```bash
+pnpm --filter @workspace/pet-community run test
+```
+
+No test runner to install — both suites run on plain Node. They cover the
+lost-pet search model's behaviour and the profile migration, which are the two
+places where a silent wrong answer would not look like a bug.
+
 ### Accounts
 
 Sign-in uses [Clerk](https://clerk.com), and is off unless a publishable key is

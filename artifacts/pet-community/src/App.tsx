@@ -24,6 +24,14 @@ import { Adopt, Shelters } from '@/pages/adopt';
 import { Give } from '@/pages/give';
 import { LostPets } from '@/pages/lost-pets';
 import { LostPetSearch } from '@/pages/lost-pet-search';
+import { Profile } from '@/pages/profile';
+import { PetPortrait, type PortraitSpec } from '@/components/pet-portrait';
+import {
+  defaultProfile,
+  normalizeProfile,
+  type PetProfile,
+  type PetType,
+} from '@/lib/profile';
 import {
   authEnabled,
   clerkProxyUrl,
@@ -35,13 +43,10 @@ import {
 const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
-type PetType = 'dog' | 'cat';
-type PetProfile = { username: string; petName: string; petType: PetType };
-type Post = { id: string; author: string; initials: string; petType?: PetType; time: string; title?: string; body: string; tag: string; likes: number; comments: string[]; accent: string; };
+type Post = { id: string; author: string; initials: string; petType?: PetType; portrait?: PortraitSpec; time: string; title?: string; body: string; tag: string; likes: number; comments: string[]; accent: string; };
 type Walk = { id: string; name: string; neighborhood: string; distance: string; duration: string; level: string; description: string; best: string; active: number; saved?: boolean; };
 type EventItem = { id: string; title: string; date: string; time: string; place: string; host: string; note: string; attendees: number; rsvp: boolean; };
 type Thread = { id: string; name: string; initials: string; pet: string; preview: string; messages: { from: 'them' | 'me'; text: string; time: string }[]; };
-const defaultProfile: PetProfile = { username: 'Your neighbor', petName: 'Your pet', petType: 'dog' };
 
 const defaultPosts: Post[] = [
   { id: 'p1', author: 'Maya Chen', initials: 'MC', time: '18 min ago', title: 'The tennis ball has been found', body: 'A sunny loop around Maple Park and Juniper is now officially tired. Thank you to whoever left the squeaky orange ball by the bench — Juniper says it was the highlight of her morning.', tag: 'Maple Park', likes: 14, comments: ['This made my morning. Give Juniper a scratch from us.'], accent: 'coral' },
@@ -100,7 +105,7 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
         <div className="mt-auto">
           {isSignedIn ? <div className="rounded-2xl bg-sidebar-accent p-3 mb-3 flex items-center gap-3">
             <Link href="/profile" className="flex items-center gap-3 min-w-0 flex-1" data-testid="link-sidebar-profile">
-              <PetAvatar type={profile.petType} className="small" />
+              <PetPortrait spec={profile.portrait} className="w-8 h-8 shrink-0" rounded={16} />
               <span className="min-w-0"><strong className="block text-sm truncate">{profile.username}</strong><span className="block text-[11px] text-sidebar-foreground/60 truncate">{profile.petName} · {profile.petType}</span></span>
             </Link>
             <button type="button" onClick={() => signOut({ redirectUrl: basePath || '/' })} className="text-sidebar-foreground/60 hover:text-sidebar-foreground p-1.5 rounded-lg" aria-label="Sign out" data-testid="button-sign-out"><ArrowRight size={15} className="rotate-180" /></button>
@@ -118,7 +123,7 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
       <div className="flex-1 min-w-0 pb-20 md:pb-0">
         <header className="sticky top-0 z-20 md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-background/90 backdrop-blur">
           <Link href="/" className="flex items-center gap-2" data-testid="link-mobile-brand"><span className="grid place-items-center w-8 h-8 rounded-xl bg-primary text-primary-foreground"><Dog size={17} /></span><strong className="serif text-lg">PetCommunity</strong></Link>
-          {isSignedIn || !authEnabled ? <Link href="/profile" className="p-1 rounded-xl" aria-label="Open your pet profile" data-testid="link-mobile-profile"><PetAvatar type={profile.petType} className="small" /></Link> : <Link href="/sign-in" className="text-xs font-bold text-primary px-2 py-2" data-testid="link-mobile-sign-in">Sign in</Link>}
+          {isSignedIn || !authEnabled ? <Link href="/profile" className="p-1 rounded-xl" aria-label="Open your pet profile" data-testid="link-mobile-profile"><PetPortrait spec={profile.portrait} className="w-8 h-8" rounded={16} /></Link> : <Link href="/sign-in" className="text-xs font-bold text-primary px-2 py-2" data-testid="link-mobile-sign-in">Sign in</Link>}
         </header>
         {children}
       </div>
@@ -145,7 +150,7 @@ function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetPr
   const addPost = (event: FormEvent) => {
     event.preventDefault();
     if (!draft.trim()) { notify({ tone: 'error', text: 'Write a little something before posting.' }); return; }
-     const newPost: Post = { id: `p-${Date.now()}`, author: profile.username, initials: profile.username.slice(0, 2).toUpperCase(), petType: profile.petType, time: 'Just now', body: draft.trim(), tag: 'Your neighborhood', likes: 0, comments: [], accent: 'sage' };
+     const newPost: Post = { id: `p-${Date.now()}`, author: profile.username, initials: profile.username.slice(0, 2).toUpperCase(), petType: profile.petType, portrait: profile.portrait, time: 'Just now', body: draft.trim(), tag: profile.neighbourhood, likes: 0, comments: [], accent: 'sage' };
     setPosts(current => [newPost, ...current]); setDraft(''); setComposerOpen(false); notify({ tone: 'success', text: 'Posted to your neighborhood.' });
   };
   const addComment = (event: FormEvent, postId: string) => {
@@ -173,11 +178,11 @@ function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetPr
     <section className="page-wrap grid lg:grid-cols-[minmax(0,1fr)_300px] gap-7 pb-10">
       <div className="space-y-4">
         <div className="flex items-center gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Feed filters">{['All activity', 'Nearby', 'Lost pets'].map(item => <button key={item} onClick={() => setFilter(item)} role="tab" aria-selected={filter === item} className={`action-button whitespace-nowrap !min-h-9 !py-2 !px-3 text-xs ${filter === item ? 'button-primary' : 'button-quiet'}`} data-testid={`button-filter-${item.toLowerCase().replace(' ', '-')}`}>{item}{item === 'Lost pets' && <span className="w-1.5 h-1.5 rounded-full bg-destructive" />}</button>)}</div>
-     {composerOpen && <form onSubmit={addPost} className="paper-card p-4 reveal" data-testid="form-create-post"><div className="flex gap-3"><PetAvatar type={profile.petType} /><div className="flex-1"><label htmlFor="post-body" className="sr-only">Post to your neighborhood</label><textarea id="post-body" className="field min-h-24 resize-y" autoFocus value={draft} onChange={e => setDraft(e.target.value)} placeholder="Share a small neighborhood update..." data-testid="input-post-body" /><div className="flex justify-end gap-2 mt-3"><button type="button" className="action-button button-quiet" onClick={() => setComposerOpen(false)} data-testid="button-cancel-post">Cancel</button><button type="submit" className="action-button button-primary" data-testid="button-submit-post">Publish post</button></div></div></div></form>}
+     {composerOpen && <form onSubmit={addPost} className="paper-card p-4 reveal" data-testid="form-create-post"><div className="flex gap-3"><PetPortrait spec={profile.portrait} className="w-10 h-10 shrink-0" rounded={20} /><div className="flex-1"><label htmlFor="post-body" className="sr-only">Post to your neighborhood</label><textarea id="post-body" className="field min-h-24 resize-y" autoFocus value={draft} onChange={e => setDraft(e.target.value)} placeholder="Share a small neighborhood update..." data-testid="input-post-body" /><div className="flex justify-end gap-2 mt-3"><button type="button" className="action-button button-quiet" onClick={() => setComposerOpen(false)} data-testid="button-cancel-post">Cancel</button><button type="submit" className="action-button button-primary" data-testid="button-submit-post">Publish post</button></div></div></div></form>}
         {loading ? <div className="space-y-4" role="status" aria-label="Loading neighborhood activity" data-testid="status-loading-feed">{[1, 2, 3].map(item => <div key={item} className="paper-card p-5" aria-hidden="true"><div className="flex gap-3"><div className="skeleton w-10 h-10 rounded-full" /><div className="flex-1 space-y-3"><div className="skeleton h-3 w-32" /><div className="skeleton h-3 w-20" /><div className="skeleton h-16 w-full mt-5" /></div></div></div>)}</div> : filtered.length === 0 ? <EmptyState title="A quiet corner for now" copy="No lost-pet posts in this filter. If you spot something, sharing quickly can make a real difference." icon={BellRing} /> : filtered.map((post, index) => {
           const postComments = [...post.comments, ...(comments[post.id] || [])];
           return <article key={post.id} className={`paper-card p-5 reveal reveal-delay-${Math.min(index + 1, 3)}`} data-testid={`card-post-${post.id}`}>
-             <div className="flex gap-3">{post.petType ? <PetAvatar type={post.petType} /> : <Avatar initials={post.initials} />}<div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-sm" data-testid={`text-post-author-${post.id}`}>{post.author}</p><p className="text-xs text-muted-foreground mt-0.5">{post.time} <span className="mx-1">·</span> neighbors only</p></div><button onClick={() => notify({ tone: 'info', text: 'Posts are shared only with your local circle.' })} className="text-muted-foreground p-1" aria-label={`More options for ${post.author}`} data-testid={`button-post-more-${post.id}`}><span className="text-lg leading-none">···</span></button></div>
+             <div className="flex gap-3">{post.portrait ? <PetPortrait spec={post.portrait} className="w-10 h-10 shrink-0" rounded={20} /> : post.petType ? <PetAvatar type={post.petType} /> : <Avatar initials={post.initials} />}<div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-sm" data-testid={`text-post-author-${post.id}`}>{post.author}</p><p className="text-xs text-muted-foreground mt-0.5">{post.time} <span className="mx-1">·</span> neighbors only</p></div><button onClick={() => notify({ tone: 'info', text: 'Posts are shared only with your local circle.' })} className="text-muted-foreground p-1" aria-label={`More options for ${post.author}`} data-testid={`button-post-more-${post.id}`}><span className="text-lg leading-none">···</span></button></div>
               {post.title && <h2 className="serif text-xl mt-4">{post.title}</h2>}<p className="text-sm leading-relaxed mt-2">{post.body}</p><span className="tag mt-4">{post.tag}</span>
               <div className="flex items-center gap-5 border-t border-border mt-5 pt-3 text-xs text-muted-foreground"><button onClick={() => setLikes(current => current.includes(post.id) ? current.filter(id => id !== post.id) : [...current, post.id])} className={`inline-flex items-center gap-1.5 ${likes.includes(post.id) ? 'text-destructive' : 'hover:text-destructive'}`} aria-label={`${likes.includes(post.id) ? 'Unlike' : 'Like'} ${post.author}'s post`} data-testid={`button-like-post-${post.id}`}><Heart size={16} fill={likes.includes(post.id) ? 'currentColor' : 'none'} />{post.likes + (likes.includes(post.id) ? 1 : 0)}</button><button onClick={() => document.getElementById(`comment-${post.id}`)?.focus()} className="inline-flex items-center gap-1.5 hover:text-primary" data-testid={`button-comment-post-${post.id}`}><MessageSquare size={16} />{postComments.length}</button><span className="ml-auto inline-flex items-center gap-1"><MapPin size={13} /> 2 km circle</span></div>
               {postComments.length > 0 && <div className="mt-3 space-y-2">{postComments.map((comment, i) => <p key={`${post.id}-comment-${i}`} className="text-xs bg-secondary rounded-lg px-3 py-2"><strong className="mr-1">Neighbor</strong>{comment}</p>)}</div>}
@@ -233,29 +238,6 @@ function Messages({ notify }: { notify: (n: Notice) => void }) {
   return <main className="min-h-[calc(100dvh-4rem)]"><PageHeader eyebrow="Private, neighbor to neighbor" title="A small inbox." description="Conversations stay lightweight and local in this demo. No public profiles, no read receipts, no noise." /><section className="page-wrap pb-10"><div className="paper-card overflow-hidden grid md:grid-cols-[280px_minmax(0,1fr)] min-h-[500px]"><div className="border-b md:border-b-0 md:border-r border-border"><div className="p-4 border-b border-border flex items-center justify-between"><p className="eyebrow">Your conversations</p><button onClick={() => notify({ tone: 'info', text: 'Choose a nearby neighbor to start a private hello.' })} className="p-2 rounded-lg hover:bg-secondary" aria-label="Start a new message" data-testid="button-new-message"><Plus size={17} /></button></div>{threads.map(thread => <button key={thread.id} onClick={() => setSelectedId(thread.id)} className={`w-full text-left p-4 flex gap-3 border-b border-border ${selectedId === thread.id ? 'bg-secondary' : 'hover:bg-secondary/50'}`} data-testid={`button-thread-${thread.id}`}><Avatar initials={thread.initials} className="small" /><div className="min-w-0"><p className="font-bold text-sm">{thread.name}</p><p className="text-[11px] text-muted-foreground">{thread.pet}</p><p className="text-xs mt-1 truncate">{thread.preview}</p></div></button>)}</div><div className="flex flex-col min-h-[500px]"><div className="p-4 md:p-5 border-b border-border flex items-center gap-3"><Avatar initials={selected.initials} className="small" /><div><h2 className="font-bold text-sm">{selected.name}</h2><p className="text-xs text-muted-foreground">{selected.pet} · neighborhood contact</p></div><span className="ml-auto tag"><ShieldCheck size={12} className="mr-1" />private</span></div><div className="flex-1 p-4 md:p-6 space-y-3 bg-background/40" aria-live="polite">{selected.messages.map((message, i) => <div key={`${selected.id}-${i}`} className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`} data-testid={`message-${selected.id}-${i}`}><div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm ${message.from === 'me' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-secondary rounded-bl-sm'}`}><p>{message.text}</p><p className={`text-[10px] mt-2 ${message.from === 'me' ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>{message.time}</p></div></div>)}</div><form onSubmit={send} className="p-3 md:p-4 border-t border-border flex gap-2"><label htmlFor="message-compose" className="sr-only">Write a message</label><input id="message-compose" className="field" value={draft} onChange={e => setDraft(e.target.value)} placeholder={`Message ${selected.name.split(' ')[0]}...`} data-testid="input-message-compose" /><button type="submit" className="action-button button-primary !px-3" aria-label="Send message" data-testid="button-send-message"><Send size={17} /></button></form></div></div></section></main>;
 }
 
-function Profile({ profile, setProfile, notify }: { profile: PetProfile; setProfile: (value: PetProfile) => void; notify: (n: Notice) => void }) {
-  const { isSignedIn, user } = useAuthUser();
-  const [form, setForm] = useState<PetProfile>(profile);
-  useEffect(() => setForm(profile), [profile]);
-
-  if (authEnabled && !isSignedIn) {
-    return <main className="page-wrap py-16 md:py-24"><div className="paper-card max-w-2xl mx-auto p-6 md:p-10 text-center"><PetAvatar type="dog" className="large mx-auto" /><p className="eyebrow mt-6">Your neighborhood identity</p><h1 className="serif text-4xl mt-2">Make it easy to say hello.</h1><p className="text-sm text-muted-foreground max-w-md mx-auto mt-3 leading-relaxed">Sign in to create a simple username and choose the pet portrait neighbors will recognize.</p><Link href="/sign-in" className="action-button button-primary mt-6" data-testid="link-profile-sign-in">Sign in to set up your profile <ArrowRight size={16} /></Link></div></main>;
-  }
-
-  const save = (event: FormEvent) => {
-    event.preventDefault();
-    const username = form.username.trim();
-    const petName = form.petName.trim();
-    if (!username || !petName) {
-      notify({ tone: 'error', text: 'Add a username and your pet’s name before saving.' });
-      return;
-    }
-    setProfile({ ...form, username, petName });
-    notify({ tone: 'success', text: 'Your pet profile is ready for the neighborhood.' });
-  };
-
-  return <main><PageHeader eyebrow="Your place in the circle" title={<>A profile made for<br /><em className="text-primary not-italic">four-legged hellos.</em></>} description="Choose what neighbors see when you post or say hello. Keep it simple: one username and one pet portrait." /><section className="page-wrap pb-10"><div className="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-6 max-w-5xl"><form onSubmit={save} className="paper-card p-5 md:p-7" data-testid="form-profile"><div className="flex items-center gap-4 pb-6 border-b border-border"><PetAvatar type={form.petType} className="large" /><div><p className="eyebrow">Your profile preview</p><h2 className="serif text-2xl mt-1">{form.username || 'Your username'}</h2><p className="text-sm text-muted-foreground mt-1">{form.petName || 'Your pet'} · {form.petType}</p></div></div><div className="mt-6 space-y-4"><label className="block text-xs font-bold">Simple username <span className="text-destructive">*</span><input className="field mt-1" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} placeholder="MapleParkMaya" maxLength={24} data-testid="input-profile-username" /><span className="block text-[11px] text-muted-foreground font-normal mt-1">Use a nickname or neighborhood name. No last name needed.</span></label><label className="block text-xs font-bold">Pet’s name <span className="text-destructive">*</span><input className="field mt-1" value={form.petName} onChange={e => setForm({ ...form, petName: e.target.value })} placeholder="Juniper" maxLength={24} data-testid="input-profile-pet-name" /></label><fieldset><legend className="text-xs font-bold mb-2">Choose a pet portrait</legend><div className="grid grid-cols-2 gap-3"><button type="button" onClick={() => setForm({ ...form, petType: 'dog' })} className={`pet-choice ${form.petType === 'dog' ? 'selected' : ''}`} aria-pressed={form.petType === 'dog'} data-testid="button-profile-dog"><PetAvatar type="dog" className="medium" /><span><strong>Dog</strong><small>Park explorer</small></span><span className="pet-choice-check">{form.petType === 'dog' ? <Check size={14} /> : null}</span></button><button type="button" onClick={() => setForm({ ...form, petType: 'cat' })} className={`pet-choice ${form.petType === 'cat' ? 'selected' : ''}`} aria-pressed={form.petType === 'cat'} data-testid="button-profile-cat"><PetAvatar type="cat" className="medium" /><span><strong>Cat</strong><small>Window watcher</small></span><span className="pet-choice-check">{form.petType === 'cat' ? <Check size={14} /> : null}</span></button></div></fieldset></div><div className="flex flex-wrap items-center justify-between gap-3 mt-7 pt-5 border-t border-border"><p className="text-xs text-muted-foreground flex items-center gap-1.5"><ShieldCheck size={14} className="text-primary" />Your email stays private.</p><button type="submit" className="action-button button-primary" data-testid="button-save-profile">Save pet profile <Check size={16} /></button></div></form><aside className="paper-card p-5 h-fit"><p className="eyebrow">Signed in as</p><p className="font-bold mt-2 break-all">{user?.primaryEmailAddress?.emailAddress || 'Your PetCommunity account'}</p><p className="text-xs text-muted-foreground leading-relaxed mt-3">Your sign-in keeps your profile attached to your account. The neighborhood only sees the username and pet portrait you choose.</p><div className="mt-5 pt-4 border-t border-border flex items-start gap-2 text-xs text-muted-foreground"><Info size={14} className="text-primary shrink-0" />Profile details are saved on this device in this MVP.</div></aside></div></section></main>;
-}
 
 function NotFoundView() { return <main className="page-wrap py-24 text-center"><p className="eyebrow">404 · off the path</p><h1 className="serif text-5xl mt-3">That page wandered off.</h1><p className="text-muted-foreground mt-3">Let’s get you back to the neighborhood.</p><Link href="/" className="action-button button-primary mt-6" data-testid="link-back-home"><ChevronLeft size={16} /> Back home</Link></main>; }
 
@@ -264,9 +246,16 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) { const [loc
 function AppContent() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const { user } = useAuthUser();
-  const [profile, setProfile] = useStored<PetProfile>(user?.id ? `pc_profile_${user.id}` : 'pc_profile_guest', defaultProfile);
+  const signedInAs = (user as { primaryEmailAddress?: { emailAddress?: string } } | null)
+    ?.primaryEmailAddress?.emailAddress ?? null;
+  const [storedProfile, setStoredProfile] = useStored<PetProfile>(
+    user?.id ? `pc_profile_${user.id}` : 'pc_profile_guest',
+    defaultProfile,
+  );
+  const profile = useMemo(() => normalizeProfile(storedProfile), [storedProfile]);
+  const setProfile = setStoredProfile;
   const notify = (n: Notice) => setNotice(n);
-  return <Shell profile={profile} notice={notice} setNotice={setNotice}><RoutedErrorBoundary><Switch><Route path="/" component={() => <Home notify={notify} profile={profile} />} /><Route path="/nearby" component={() => <Nearby notify={notify} />} /><Route path="/walks" component={() => <Walks notify={notify} />} /><Route path="/events" component={() => <Events notify={notify} />} /><Route path="/lost-pets" component={() => <LostPets notify={notify} />} /><Route path="/lost-pets/:id">{(params: { id: string }) => <LostPetSearch caseId={params.id} notify={notify} />}</Route><Route path="/adopt" component={() => <Adopt notify={notify} />} /><Route path="/shelters" component={() => <Shelters notify={notify} />} /><Route path="/give" component={() => <Give notify={notify} />} /><Route path="/messages" component={() => <Messages notify={notify} />} /><Route path="/profile" component={() => <Profile profile={profile} setProfile={setProfile} notify={notify} />} /><Route component={NotFoundView} /></Switch></RoutedErrorBoundary></Shell>;
+  return <Shell profile={profile} notice={notice} setNotice={setNotice}><RoutedErrorBoundary><Switch><Route path="/" component={() => <Home notify={notify} profile={profile} />} /><Route path="/nearby" component={() => <Nearby notify={notify} />} /><Route path="/walks" component={() => <Walks notify={notify} />} /><Route path="/events" component={() => <Events notify={notify} />} /><Route path="/lost-pets" component={() => <LostPets notify={notify} profile={profile} />} /><Route path="/lost-pets/:id">{(params: { id: string }) => <LostPetSearch caseId={params.id} notify={notify} />}</Route><Route path="/adopt" component={() => <Adopt notify={notify} />} /><Route path="/shelters" component={() => <Shelters notify={notify} />} /><Route path="/give" component={() => <Give notify={notify} />} /><Route path="/messages" component={() => <Messages notify={notify} />} /><Route path="/profile" component={() => <Profile profile={profile} setProfile={setProfile} notify={notify} signedInAs={signedInAs} />} /><Route component={NotFoundView} /></Switch></RoutedErrorBoundary></Shell>;
 }
 
 function AccountsOff({ heading }: { heading: string }) {
@@ -362,8 +351,24 @@ function ClerkProviderWithRoutes() {
   >{appRoutes}</ClerkProvider>;
 }
 
+function AppCrashed({ error, resetError }: { error: Error; resetError: () => void }) {
+  return <div className="min-h-[100dvh] grid place-items-center bg-background px-4">
+    <div className="paper-card max-w-lg p-8 text-center">
+      <AlertTriangle size={26} className="mx-auto text-destructive mb-4" />
+      <p className="eyebrow">Something broke</p>
+      <h1 className="serif text-3xl mt-2">That should not have happened.</h1>
+      <p className="text-sm text-muted-foreground mt-3 leading-relaxed">The app hit an error it could not recover from on its own. Reloading usually clears it.</p>
+      <pre className="mono text-[11px] text-left bg-secondary rounded-lg p-3 mt-4 overflow-x-auto">{error.message}</pre>
+      <div className="flex flex-wrap gap-2 justify-center mt-5">
+        <button onClick={resetError} className="action-button button-primary" data-testid="button-app-retry">Try again</button>
+        <button onClick={() => window.location.reload()} className="action-button button-quiet" data-testid="button-app-reload">Reload the page</button>
+      </div>
+    </div>
+  </div>;
+}
+
 function App() {
-  return <TooltipProvider><WouterRouter base={basePath}><ClerkProviderWithRoutes /></WouterRouter><Toaster /></TooltipProvider>;
+  return <TooltipProvider><ErrorBoundary FallbackComponent={AppCrashed}><WouterRouter base={basePath}><ClerkProviderWithRoutes /></WouterRouter></ErrorBoundary><Toaster /></TooltipProvider>;
 }
 
 export default App;

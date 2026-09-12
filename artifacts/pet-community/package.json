@@ -8,7 +8,9 @@
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:model": "node --experimental-strip-types --no-warnings src/lib/lost-pet-model.test.ts"
+    "test:model": "node --experimental-strip-types --no-warnings src/lib/lost-pet-model.test.ts",
+    "test:profile": "node --experimental-strip-types --no-warnings src/lib/profile.test.ts",
+    "test": "pnpm run test:model && pnpm run test:profile"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

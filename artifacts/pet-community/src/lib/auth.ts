@@ -17,16 +17,22 @@
 import { useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 
+/** Clerk publishable keys always look like this. Anything else is not a key. */
+const KEY_SHAPE = /^pk_(test|live)_[A-Za-z0-9]/;
+
 function resolveKey(): string | undefined {
   try {
     const key = publishableKeyFromHost(
       window.location.hostname,
       import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
     );
-    return key || undefined;
+    // The host resolver can hand back a placeholder or an empty-ish value on a
+    // host it does not know — localhost, a preview URL, a static host. Mounting
+    // ClerkProvider with one of those throws during render, above the error
+    // boundary, and the whole page goes white with nothing in the UI to say why.
+    // So the key has to actually look like a key before accounts are turned on.
+    return typeof key === 'string' && KEY_SHAPE.test(key.trim()) ? key.trim() : undefined;
   } catch {
-    // The host-based resolver throws on hostnames it does not recognise, which
-    // includes localhost. That is not an error worth crashing the app over.
     return undefined;
   }
 }

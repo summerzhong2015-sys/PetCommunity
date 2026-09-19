@@ -24,7 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import { PetPortrait } from '@/components/pet-portrait';
-import { PageHeader, ProgressBar, Stat, useRevealOnMount, useStored, type Notify } from '@/components/page-bits';
+import { PageHeader, ProgressBar, Stat, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
 import {
   CAMPAIGNS,
   CAMPAIGN_LABEL,
@@ -252,7 +252,7 @@ function CampaignDetail({
   onClose: () => void;
   onGive: (amount: number, recurring: boolean) => void;
 }) {
-  const panel = useRevealOnMount<HTMLDivElement>();
+  const panel = useRevealWhen<HTMLDivElement>(campaign.id);
   const [amount, setAmount] = useState<number>(25);
   const [custom, setCustom] = useState('');
   const [recurring, setRecurring] = useState(false);

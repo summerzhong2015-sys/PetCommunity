@@ -121,19 +121,25 @@ export function useStored<T>(key: string, fallback: T) {
 }
 
 /**
- * Brings a panel into view as soon as it opens.
+ * Brings a panel into view when a selection opens it.
  *
- * Detail panels render after the grid they belong to, so on anything narrower
- * than a wide desktop they open below the fold and the button that opened them
- * looks broken. Attach this to the panel's root element.
+ * List-and-detail layouts put the detail after the list, so on a narrow screen
+ * — or any stacked breakpoint — the panel opens below the fold and the control
+ * that opened it looks broken. Pass the selection key; the panel scrolls itself
+ * into view when that changes, and only when it is actually off-screen, so
+ * nothing jumps on a wide layout where both are already visible.
  */
-export function useRevealOnMount<T extends HTMLElement>() {
+export function useRevealWhen<T extends HTMLElement>(key: unknown) {
   const ref = useRef<T | null>(null);
   useEffect(() => {
+    if (key === null || key === undefined || key === false) return;
     const node = ref.current;
     if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const alreadyVisible = rect.top >= 0 && rect.top < window.innerHeight * 0.6;
+    if (alreadyVisible) return;
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     node.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
-  }, []);
+  }, [key]);
   return ref;
 }

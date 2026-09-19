@@ -25,7 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import { PetPortrait } from '@/components/pet-portrait';
-import { EmptyState, PageHeader, useRevealOnMount, useStored, type Notify } from '@/components/page-bits';
+import { EmptyState, PageHeader, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
 import { ADOPTABLE_PETS, SHELTERS, shelterOf, type AdoptablePet } from '@/lib/adoption-data';
 
 type SpeciesFilter = 'all' | 'dog' | 'cat';
@@ -283,7 +283,7 @@ function PetDetail({
   hasEnquired: boolean;
   onApply: () => void;
 }) {
-  const panel = useRevealOnMount<HTMLDivElement>();
+  const panel = useRevealWhen<HTMLDivElement>(pet.id);
   const shelter = shelterOf(pet);
   const [application, setApplication] = useState({
     name: '',

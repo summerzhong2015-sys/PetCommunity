@@ -1,6 +1,6 @@
 /** Small presentational pieces shared across the app's pages. */
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 
 export type Notice = { tone: 'success' | 'error' | 'info'; text: string };
@@ -118,4 +118,22 @@ export function useStored<T>(key: string, fallback: T) {
     }
   }, [key, value]);
   return [value, setValue] as const;
+}
+
+/**
+ * Brings a panel into view as soon as it opens.
+ *
+ * Detail panels render after the grid they belong to, so on anything narrower
+ * than a wide desktop they open below the fold and the button that opened them
+ * looks broken. Attach this to the panel's root element.
+ */
+export function useRevealOnMount<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    node.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  }, []);
+  return ref;
 }

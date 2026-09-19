@@ -24,7 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import { PetPortrait } from '@/components/pet-portrait';
-import { PageHeader, ProgressBar, Stat, useStored, type Notify } from '@/components/page-bits';
+import { PageHeader, ProgressBar, Stat, useRevealOnMount, useStored, type Notify } from '@/components/page-bits';
 import {
   CAMPAIGNS,
   CAMPAIGN_LABEL,
@@ -252,6 +252,7 @@ function CampaignDetail({
   onClose: () => void;
   onGive: (amount: number, recurring: boolean) => void;
 }) {
+  const panel = useRevealOnMount<HTMLDivElement>();
   const [amount, setAmount] = useState<number>(25);
   const [custom, setCustom] = useState('');
   const [recurring, setRecurring] = useState(false);
@@ -269,7 +270,7 @@ function CampaignDetail({
   }
 
   return (
-    <div className="paper-card p-6 reveal" data-testid={`panel-campaign-${campaign.id}`}>
+    <div ref={panel} className="paper-card p-6 reveal" data-testid={`panel-campaign-${campaign.id}`}>
       <div className="flex justify-between items-start gap-4">
         <div>
           <p className="eyebrow">{CAMPAIGN_LABEL[campaign.kind]} · {campaign.beneficiary}</p>

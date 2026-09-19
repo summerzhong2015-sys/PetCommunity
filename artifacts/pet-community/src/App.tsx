@@ -25,6 +25,7 @@ import { Give } from '@/pages/give';
 import { LostPets } from '@/pages/lost-pets';
 import { LostPetSearch } from '@/pages/lost-pet-search';
 import { Profile } from '@/pages/profile';
+import { Walks } from '@/pages/walks';
 import { PetPortrait, type PortraitSpec } from '@/components/pet-portrait';
 import {
   defaultProfile,
@@ -44,7 +45,6 @@ const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 type Post = { id: string; author: string; initials: string; petType?: PetType; portrait?: PortraitSpec; time: string; title?: string; body: string; tag: string; likes: number; comments: string[]; accent: string; };
-type Walk = { id: string; name: string; neighborhood: string; distance: string; duration: string; level: string; description: string; best: string; active: number; saved?: boolean; };
 type EventItem = { id: string; title: string; date: string; time: string; place: string; host: string; note: string; attendees: number; rsvp: boolean; };
 type Thread = { id: string; name: string; initials: string; pet: string; preview: string; messages: { from: 'them' | 'me'; text: string; time: string }[]; };
 
@@ -52,11 +52,6 @@ const defaultPosts: Post[] = [
   { id: 'p1', author: 'Maya Chen', initials: 'MC', time: '18 min ago', title: 'The tennis ball has been found', body: 'A sunny loop around Maple Park and Juniper is now officially tired. Thank you to whoever left the squeaky orange ball by the bench — Juniper says it was the highlight of her morning.', tag: 'Maple Park', likes: 14, comments: ['This made my morning. Give Juniper a scratch from us.'], accent: 'coral' },
   { id: 'p2', author: 'Theo Alvarez', initials: 'TA', time: '42 min ago', body: 'Heading down the creek path around 5:30 with Basil. We are doing a slow one today and have room for a couple of friendly stragglers.', tag: 'Out walking', likes: 9, comments: [], accent: 'ochre' },
   { id: 'p3', author: 'Nora Williams', initials: 'NW', time: '2 hr ago', title: 'Found: blue collar near Willow Gate', body: 'Small blue nylon collar, no tag. I left it with the park attendant at Willow Gate so it stays dry. Hope it finds its person.', tag: 'Kind find', likes: 21, comments: ['The owner was looking earlier — passing this along.'], accent: 'sage' },
-];
-const defaultWalks: Walk[] = [
-  { id: 'w1', name: 'Creekside Loop', neighborhood: 'North Creek', distance: '2.8 km', duration: '35 min', level: 'Easy', description: 'A shady, mostly flat loop beside the creek with three wide spots for off-leash play. The south gate can get muddy after rain.', best: 'Early morning', active: 4 },
-  { id: 'w2', name: 'Maple Park Circuit', neighborhood: 'Maple Park', distance: '1.6 km', duration: '20 min', level: 'Easy', description: 'A bright neighborhood circuit past the community garden and two water fountains. Great for a quick hello-heavy walk.', best: 'Lunch break', active: 7 },
-  { id: 'w3', name: 'Hilltop Lookout', neighborhood: 'East Ridge', distance: '4.2 km', duration: '55 min', level: 'Rolling', description: 'A steady climb rewarded with a wide view over the neighborhood. Bring water; the last fountain is at the lower trailhead.', best: 'Golden hour', active: 2 },
 ];
 const defaultEvents: EventItem[] = [
   { id: 'e1', title: 'Sunday sniffari', date: 'Sun, Jun 16', time: '9:00 AM', place: 'Maple Park, north gate', host: 'Maya C.', note: 'A gentle, no-rush loop for curious noses and their people.', attendees: 8, rsvp: false },
@@ -213,12 +208,6 @@ function Nearby({ notify }: { notify: (n: Notice) => void }) {
   </main>;
 }
 
-function Walks({ notify }: { notify: (n: Notice) => void }) {
-  const [walks, setWalks] = useStored<Walk[]>('pc_walks', defaultWalks);
-  const [selected, setSelected] = useState<string | null>(null);
-  const chosen = walks.find(w => w.id === selected);
-  return <main><PageHeader eyebrow="Go at your own pace" title={<>Routes with a<br /><em className="text-primary not-italic">little local lore.</em></>} description="Familiar loops, honest details, and a peek at who is out there now. Save a route for the next good-weather window." /><section className="page-wrap pb-10"><div className="grid lg:grid-cols-3 gap-4">{walks.map((walk, i) => <article key={walk.id} className={`paper-card overflow-hidden reveal reveal-delay-${Math.min(i + 1, 3)}`} data-testid={`card-walk-${walk.id}`}><div className={`h-32 relative ${i === 0 ? 'bg-[#b8cdb9]' : i === 1 ? 'bg-[#e4c988]' : 'bg-[#c9d8d4]'}`}><div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(135deg, transparent 45%, hsl(158 35% 29% / .25) 46%, transparent 48%), linear-gradient(25deg, transparent 55%, hsl(42 32% 96% / .6) 56%, transparent 58%)', backgroundSize: '44px 44px' }} /><span className="absolute top-4 left-4 tag bg-card/80">{walk.level}</span><button onClick={() => { setWalks(current => current.map(w => w.id === walk.id ? { ...w, saved: !w.saved } : w)); notify({ tone: 'success', text: walk.saved ? 'Route removed from your saved walks.' : 'Route saved for later.' }); }} className={`absolute top-3 right-3 grid place-items-center w-9 h-9 rounded-full ${walk.saved ? 'bg-accent text-accent-foreground' : 'bg-card/85'}`} aria-label={`${walk.saved ? 'Unsave' : 'Save'} ${walk.name}`} data-testid={`button-save-walk-${walk.id}`}><Bookmark size={16} fill={walk.saved ? 'currentColor' : 'none'} /></button><RouteIcon className="absolute bottom-4 right-5 text-primary/70" size={43} strokeWidth={1.2} /></div><div className="p-5"><p className="eyebrow">{walk.neighborhood}</p><h2 className="serif text-2xl mt-1">{walk.name}</h2><div className="flex gap-4 text-xs text-muted-foreground mt-3"><span className="inline-flex items-center gap-1"><RouteIcon size={13} />{walk.distance}</span><span className="inline-flex items-center gap-1"><Clock3 size={13} />{walk.duration}</span></div><p className="text-sm leading-relaxed mt-4">{walk.description}</p><div className="flex items-center justify-between mt-5 pt-4 border-t border-border"><span className="text-xs text-muted-foreground"><strong className="text-primary">{walk.active}</strong> out now</span><button onClick={() => setSelected(walk.id)} className="text-xs font-bold text-primary inline-flex items-center gap-1" data-testid={`button-open-walk-${walk.id}`}>Route details <ArrowRight size={14} /></button></div></div></article>)}</div>{chosen && <div className="paper-card mt-6 p-6 reveal" data-testid="panel-walk-details"><div className="flex justify-between items-start"><div><p className="eyebrow">{chosen.neighborhood} · route notes</p><h2 className="serif text-3xl mt-1">{chosen.name}</h2></div><button onClick={() => setSelected(null)} className="p-2 rounded-lg hover:bg-secondary" aria-label="Close route details" data-testid="button-close-walk"><X size={18} /></button></div><div className="grid md:grid-cols-3 gap-5 mt-6"><div><p className="eyebrow">The shape</p><p className="text-sm mt-1">{chosen.distance} / {chosen.duration} / {chosen.level}</p></div><div><p className="eyebrow">Best window</p><p className="text-sm mt-1">{chosen.best}</p></div><div><p className="eyebrow">Active neighbors</p><p className="text-sm mt-1 flex items-center gap-2"><UsersRound size={15} className="text-primary" />{chosen.active} people are out nearby</p></div></div><button className="action-button button-primary mt-6" onClick={() => notify({ tone: 'info', text: `You are marked as interested in ${chosen.name}.` })} data-testid="button-join-walk"><Footprints size={16} /> I’m heading there</button></div>}</section></main>;
-}
 
 function Events({ notify }: { notify: (n: Notice) => void }) {
   const [events, setEvents] = useStored<EventItem[]>('pc_events', defaultEvents);

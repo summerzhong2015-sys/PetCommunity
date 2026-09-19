@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ClerkProvider, SignIn, SignUp } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
@@ -27,6 +27,7 @@ import { LostPets } from '@/pages/lost-pets';
 import { LostPetSearch } from '@/pages/lost-pet-search';
 import { Profile } from '@/pages/profile';
 import { Walks } from '@/pages/walks';
+import { review, type Verdict } from '@/lib/moderation';
 import { PetPortrait, type PortraitSpec } from '@/components/pet-portrait';
 import {
   defaultProfile,
@@ -141,13 +142,20 @@ function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetPr
   const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [postVerdict, setPostVerdict] = useState<Verdict | null>(null);
   const filtered = useMemo(() => filter === 'Lost pets' ? posts.filter(p => p.tag.toLowerCase().includes('lost')) : filter === 'Nearby' ? posts.filter(p => ['Maple Park', 'Out walking'].includes(p.tag)) : posts, [filter, posts]);
   useEffect(() => { const timer = window.setTimeout(() => setLoading(false), 180); return () => window.clearTimeout(timer); }, []);
-  const addPost = (event: FormEvent) => {
+  const addPost = async (event: FormEvent) => {
     event.preventDefault();
-    if (!draft.trim()) { notify({ tone: 'error', text: 'Write a little something before posting.' }); return; }
-     const newPost: Post = { id: `p-${Date.now()}`, author: profile.username, initials: profile.username.slice(0, 2).toUpperCase(), petType: profile.petType, portrait: profile.portrait, time: 'Just now', body: draft.trim(), tag: profile.neighbourhood, likes: 0, comments: [], accent: 'sage' };
-    setPosts(current => [newPost, ...current]); setDraft(''); setComposerOpen(false); notify({ tone: 'success', text: 'Posted to your neighborhood.' });
+    const text = draft.trim();
+    if (!text) { notify({ tone: 'error', text: 'Write a little something before posting.' }); return; }
+    // A post goes to the whole circle, so it gets the same check a message does.
+    if (!(postVerdict?.level === 'warn' && postVerdict.matched && text.includes(postVerdict.matched))) {
+      const result = await review(text);
+      if (result.level !== 'clean') { setPostVerdict(result); return; }
+    }
+    const newPost: Post = { id: `p-${Date.now()}`, author: profile.username, initials: profile.username.slice(0, 2).toUpperCase(), petType: profile.petType, portrait: profile.portrait, time: 'Just now', body: text, tag: profile.neighbourhood, likes: 0, comments: [], accent: 'sage' };
+    setPosts(current => [newPost, ...current]); setDraft(''); setPostVerdict(null); setComposerOpen(false); notify({ tone: 'success', text: 'Posted to your neighborhood.' });
   };
   const addComment = (event: FormEvent, postId: string) => {
     event.preventDefault(); const text = commentDrafts[postId]?.trim(); if (!text) return;
@@ -174,7 +182,7 @@ function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetPr
     <section className="page-wrap grid lg:grid-cols-[minmax(0,1fr)_300px] gap-7 pb-10">
       <div className="space-y-4">
         <div className="flex items-center gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Feed filters">{['All activity', 'Nearby', 'Lost pets'].map(item => <button key={item} onClick={() => setFilter(item)} role="tab" aria-selected={filter === item} className={`action-button whitespace-nowrap !min-h-9 !py-2 !px-3 text-xs ${filter === item ? 'button-primary' : 'button-quiet'}`} data-testid={`button-filter-${item.toLowerCase().replace(' ', '-')}`}>{item}{item === 'Lost pets' && <span className="w-1.5 h-1.5 rounded-full bg-destructive" />}</button>)}</div>
-     {composerOpen && <form onSubmit={addPost} className="paper-card p-4 reveal" data-testid="form-create-post"><div className="flex gap-3"><PetPortrait spec={profile.portrait} className="w-10 h-10 shrink-0" rounded={20} /><div className="flex-1"><label htmlFor="post-body" className="sr-only">Post to your neighborhood</label><textarea id="post-body" className="field min-h-24 resize-y" autoFocus value={draft} onChange={e => setDraft(e.target.value)} placeholder="Share a small neighborhood update..." data-testid="input-post-body" /><div className="flex justify-end gap-2 mt-3"><button type="button" className="action-button button-quiet" onClick={() => setComposerOpen(false)} data-testid="button-cancel-post">Cancel</button><button type="submit" className="action-button button-primary" data-testid="button-submit-post">Publish post</button></div></div></div></form>}
+     {composerOpen && <form onSubmit={addPost} className="paper-card p-4 reveal" data-testid="form-create-post"><div className="flex gap-3"><PetPortrait spec={profile.portrait} className="w-10 h-10 shrink-0" rounded={20} /><div className="flex-1"><label htmlFor="post-body" className="sr-only">Post to your neighborhood</label><textarea id="post-body" className="field min-h-24 resize-y" autoFocus value={draft} onChange={e => { setDraft(e.target.value); if (postVerdict?.level === 'block') setPostVerdict(null); }} placeholder="Share a small neighborhood update..." data-testid="input-post-body" />{postVerdict && postVerdict.level !== 'clean' && <p className={`text-sm mt-2 flex items-start gap-2 ${postVerdict.level === 'block' ? 'text-destructive' : 'text-muted-foreground'}`} role="alert" data-testid="notice-post-moderation">{postVerdict.level === 'block' ? <AlertTriangle size={15} className="shrink-0 mt-0.5" /> : <Info size={15} className="shrink-0 mt-0.5 text-primary" />}<span>{postVerdict.reason}{postVerdict.level === 'warn' && <em className="not-italic block text-xs mt-1">Press publish again to post it anyway.</em>}</span></p>}<div className="flex justify-end gap-2 mt-3"><button type="button" className="action-button button-quiet" onClick={() => setComposerOpen(false)} data-testid="button-cancel-post">Cancel</button><button type="submit" className="action-button button-primary" data-testid="button-submit-post">Publish post</button></div></div></div></form>}
         {loading ? <div className="space-y-4" role="status" aria-label="Loading neighborhood activity" data-testid="status-loading-feed">{[1, 2, 3].map(item => <div key={item} className="paper-card p-5" aria-hidden="true"><div className="flex gap-3"><div className="skeleton w-10 h-10 rounded-full" /><div className="flex-1 space-y-3"><div className="skeleton h-3 w-32" /><div className="skeleton h-3 w-20" /><div className="skeleton h-16 w-full mt-5" /></div></div></div>)}</div> : filtered.length === 0 ? <EmptyState title="A quiet corner for now" copy="No lost-pet posts in this filter. If you spot something, sharing quickly can make a real difference." icon={BellRing} /> : filtered.map((post, index) => {
           const postComments = [...post.comments, ...(comments[post.id] || [])];
           return <article key={post.id} className={`paper-card p-5 reveal reveal-delay-${Math.min(index + 1, 3)}`} data-testid={`card-post-${post.id}`}>
@@ -224,10 +232,36 @@ function Messages({ notify }: { notify: (n: Notice) => void }) {
   const [threads, setThreads] = useStored<Thread[]>('pc_threads', defaultThreads);
   const [selectedId, setSelectedId] = useState('t1');
   const conversation = useRevealWhen<HTMLDivElement>(selectedId);
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
+  const [checking, setChecking] = useState(false);
+  const endOfMessages = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState(() => { const value = localStorage.getItem('pc_draft') || ''; localStorage.removeItem('pc_draft'); return value; });
   const selected = threads.find(t => t.id === selectedId) || threads[0];
-  const send = (e: FormEvent) => { e.preventDefault(); if (!draft.trim()) return; const message = { from: 'me' as const, text: draft.trim(), time: 'Just now' }; setThreads(current => current.map(thread => thread.id === selected.id ? { ...thread, preview: message.text, messages: [...thread.messages, message] } : thread)); setDraft(''); notify({ tone: 'success', text: 'Message sent in your local inbox.' }); };
-  return <main className="min-h-[calc(100dvh-4rem)]"><PageHeader eyebrow="Private, neighbor to neighbor" title="A small inbox." description="Conversations stay lightweight and local in this demo. No public profiles, no read receipts, no noise." /><section className="page-wrap pb-10"><div className="paper-card overflow-hidden grid md:grid-cols-[280px_minmax(0,1fr)] min-h-[500px]"><div className="border-b md:border-b-0 md:border-r border-border"><div className="p-4 border-b border-border flex items-center justify-between"><p className="eyebrow">Your conversations</p><button onClick={() => notify({ tone: 'info', text: 'Choose a nearby neighbor to start a private hello.' })} className="p-2 rounded-lg hover:bg-secondary" aria-label="Start a new message" data-testid="button-new-message"><Plus size={17} /></button></div>{threads.map(thread => <button key={thread.id} onClick={() => setSelectedId(thread.id)} className={`w-full text-left p-4 flex gap-3 border-b border-border ${selectedId === thread.id ? 'bg-secondary' : 'hover:bg-secondary/50'}`} data-testid={`button-thread-${thread.id}`}><Avatar initials={thread.initials} className="small" /><div className="min-w-0"><p className="font-bold text-sm">{thread.name}</p><p className="text-[11px] text-muted-foreground">{thread.pet}</p><p className="text-xs mt-1 truncate">{thread.preview}</p></div></button>)}</div><div ref={conversation} className="flex flex-col min-h-[500px]"><div className="p-4 md:p-5 border-b border-border flex items-center gap-3"><Avatar initials={selected.initials} className="small" /><div><h2 className="font-bold text-sm">{selected.name}</h2><p className="text-xs text-muted-foreground">{selected.pet} · neighborhood contact</p></div><span className="ml-auto tag"><ShieldCheck size={12} className="mr-1" />private</span></div><div className="flex-1 p-4 md:p-6 space-y-3 bg-background/40" aria-live="polite">{selected.messages.map((message, i) => <div key={`${selected.id}-${i}`} className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`} data-testid={`message-${selected.id}-${i}`}><div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm ${message.from === 'me' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-secondary rounded-bl-sm'}`}><p>{message.text}</p><p className={`text-[10px] mt-2 ${message.from === 'me' ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>{message.time}</p></div></div>)}</div><form onSubmit={send} className="p-3 md:p-4 border-t border-border flex gap-2"><label htmlFor="message-compose" className="sr-only">Write a message</label><input id="message-compose" className="field" value={draft} onChange={e => setDraft(e.target.value)} placeholder={`Message ${selected.name.split(' ')[0]}...`} data-testid="input-message-compose" /><button type="submit" className="action-button button-primary !px-3" aria-label="Send message" data-testid="button-send-message"><Send size={17} /></button></form></div></div></section></main>;
+  const deliver = (text: string) => {
+    const message = { from: 'me' as const, text, time: 'Just now' };
+    setThreads(current => current.map(thread => thread.id === selected.id ? { ...thread, preview: message.text, messages: [...thread.messages, message] } : thread));
+    setDraft('');
+    setVerdict(null);
+    notify({ tone: 'success', text: `Sent to ${selected.name.split(' ')[0]}.` });
+  };
+
+  const send = async (e: FormEvent) => {
+    e.preventDefault();
+    const text = draft.trim();
+    if (!text) return;
+    // A warning the person has read and pressed send through is a yes.
+    if (verdict?.level === 'warn' && verdict.matched && text.includes(verdict.matched)) { deliver(text); return; }
+    setChecking(true);
+    const result = await review(text);
+    setChecking(false);
+    if (result.level === 'clean') { deliver(text); return; }
+    setVerdict(result);
+  };
+
+  // Keep the newest message in view. Without this the list only grew downward,
+  // so everything sent landed below the fold and nothing seemed to happen.
+  useEffect(() => { endOfMessages.current?.scrollIntoView({ block: 'nearest' }); }, [selected.messages.length, selectedId]);
+  return <main className="min-h-[calc(100dvh-4rem)]"><PageHeader eyebrow="Private, neighbor to neighbor" title="A small inbox." description="Conversations stay lightweight and local in this demo. No public profiles, no read receipts, no noise." /><section className="page-wrap pb-10"><div className="paper-card overflow-hidden grid md:grid-cols-[280px_minmax(0,1fr)] min-h-[500px]"><div className="border-b md:border-b-0 md:border-r border-border"><div className="p-4 border-b border-border flex items-center justify-between"><p className="eyebrow">Your conversations</p><button onClick={() => notify({ tone: 'info', text: 'Choose a nearby neighbor to start a private hello.' })} className="p-2 rounded-lg hover:bg-secondary" aria-label="Start a new message" data-testid="button-new-message"><Plus size={17} /></button></div>{threads.map(thread => <button key={thread.id} onClick={() => setSelectedId(thread.id)} className={`w-full text-left p-4 flex gap-3 border-b border-border ${selectedId === thread.id ? 'bg-secondary' : 'hover:bg-secondary/50'}`} data-testid={`button-thread-${thread.id}`}><Avatar initials={thread.initials} className="small" /><div className="min-w-0"><p className="font-bold text-sm">{thread.name}</p><p className="text-[11px] text-muted-foreground">{thread.pet}</p><p className="text-xs mt-1 truncate">{thread.preview}</p></div></button>)}</div><div ref={conversation} className="flex flex-col min-h-[500px]"><div className="p-4 md:p-5 border-b border-border flex items-center gap-3"><Avatar initials={selected.initials} className="small" /><div><h2 className="font-bold text-sm">{selected.name}</h2><p className="text-xs text-muted-foreground">{selected.pet} · neighborhood contact</p></div><span className="ml-auto tag"><ShieldCheck size={12} className="mr-1" />private</span></div><div className="flex-1 p-4 md:p-6 space-y-3 bg-background/40 overflow-y-auto max-h-[46vh] md:max-h-[52vh]" aria-live="polite">{selected.messages.map((message, i) => <div key={`${selected.id}-${i}`} className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`} data-testid={`message-${selected.id}-${i}`}><div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm ${message.from === 'me' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-secondary rounded-bl-sm'}`}><p>{message.text}</p><p className={`text-[10px] mt-2 ${message.from === 'me' ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>{message.time}</p></div></div>)}<div ref={endOfMessages} /></div><div className="border-t border-border">{verdict && verdict.level !== 'clean' && <div className={`px-3 md:px-4 pt-3 text-sm flex items-start gap-2.5 ${verdict.level === 'block' ? 'text-destructive' : 'text-muted-foreground'}`} role="alert" data-testid="notice-moderation">{verdict.level === 'block' ? <AlertTriangle size={16} className="shrink-0 mt-0.5" /> : <Info size={16} className="shrink-0 mt-0.5 text-primary" />}<span>{verdict.reason}{verdict.level === 'warn' && <em className="not-italic block text-xs mt-1">Press send again to send it anyway.</em>}</span></div>}<form onSubmit={send} className="p-3 md:p-4 flex gap-2"><label htmlFor="message-compose" className="sr-only">Write a message</label><input id="message-compose" className="field" value={draft} onChange={e => { setDraft(e.target.value); if (verdict?.level === 'block') setVerdict(null); }} placeholder={`Message ${selected.name.split(' ')[0]}...`} data-testid="input-message-compose" /><button type="submit" disabled={checking} className="action-button button-primary !px-3 disabled:opacity-60" aria-label="Send message" data-testid="button-send-message"><Send size={17} /></button></form></div></div></div></section></main>;
 }
 
 

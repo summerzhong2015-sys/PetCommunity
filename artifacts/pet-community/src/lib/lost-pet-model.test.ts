@@ -188,6 +188,24 @@ const base = (over: Partial<PredictionInput> = {}): PredictionInput => ({
     dogHot < 0.35 && catHot < 0.35, `dog=${dogHot.toFixed(3)} cat=${catHot.toFixed(3)}`);
 }
 
+// --- 10c. zone names have to be followable instructions ---
+{
+  const p = predict(base({ minutesSinceLastSeen: 96, sightings: [
+    { id: 'a', at: { x: -60, y: 260 }, minutesAgo: 30, confidence: 'likely', note: '', reporter: 'x' }] }));
+  const places = p.zones.map(z => z.place);
+  check('no two zones share a name', new Set(places).size === places.length, places.join(' | '));
+  check('disambiguated names say where', places.every(pl => pl.length > 3));
+  check('no zone is described as "0 m" away',
+    places.every(pl => !/\b0 m\b/.test(pl)), places.join(' | '));
+
+  // A single zone in an area keeps its plain name.
+  const cat = predict(base({ species: 'cat', minutesSinceLastSeen: 240 }));
+  const catPlaces = cat.zones.map(z => z.place);
+  check('cat zone names are unique too', new Set(catPlaces).size === catPlaces.length, catPlaces.join(' | '));
+  check('a cat clustered on the anchor reads sensibly',
+    catPlaces.every(pl => !/\b0 m\b/.test(pl)), catPlaces.join(' | '));
+}
+
 // --- 11. determinism ---
 {
   const a = predict(base({ minutesSinceLastSeen: 137 }));

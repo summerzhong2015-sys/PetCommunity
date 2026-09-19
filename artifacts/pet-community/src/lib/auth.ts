@@ -1,12 +1,14 @@
 /**
  * Clerk is optional.
  *
- * On Replit the publishable key is injected from the host. Running locally
- * there is usually no key at all, and ClerkProvider throws on a missing one —
- * which shows up as a blank white page rather than a useful error. So when no
- * key resolves, the app runs signed-out: everything that does not need an
- * account still works, profiles fall back to this browser, and the sign-in
- * screens explain what is missing.
+ * On Replit the publishable key is injected by deriving it from the hostname.
+ * Nowhere else does that, and the helper will happily derive a well-formed key
+ * from any host — one that points Clerk at a subdomain that does not exist. See
+ * clerk-host.ts for how a real key is told apart from a derived one.
+ *
+ * When no usable key resolves the app runs signed-out: everything that does not
+ * need an account still works, profiles fall back to this browser, and the
+ * sign-in screens explain what is missing.
  *
  * Set VITE_CLERK_PUBLISHABLE_KEY to turn accounts back on.
  *
@@ -16,25 +18,14 @@
 
 import { useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
-
-/** Clerk publishable keys always look like this. Anything else is not a key. */
-const KEY_SHAPE = /^pk_(test|live)_[A-Za-z0-9]/;
+import { chooseKey } from './clerk-host';
 
 function resolveKey(): string | undefined {
-  try {
-    const key = publishableKeyFromHost(
-      window.location.hostname,
-      import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-    );
-    // The host resolver can hand back a placeholder or an empty-ish value on a
-    // host it does not know — localhost, a preview URL, a static host. Mounting
-    // ClerkProvider with one of those throws during render, above the error
-    // boundary, and the whole page goes white with nothing in the UI to say why.
-    // So the key has to actually look like a key before accounts are turned on.
-    return typeof key === 'string' && KEY_SHAPE.test(key.trim()) ? key.trim() : undefined;
-  } catch {
-    return undefined;
-  }
+  return chooseKey({
+    explicit: import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+    hostname: window.location.hostname,
+    derive: (hostname) => publishableKeyFromHost(hostname, undefined),
+  });
 }
 
 export const clerkPublishableKey = resolveKey();

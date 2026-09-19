@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:model": "node --experimental-strip-types --no-warnings src/lib/lost-pet-model.test.ts",
     "test:profile": "node --experimental-strip-types --no-warnings src/lib/profile.test.ts",
-    "test": "pnpm run test:model && pnpm run test:profile"
+    "test": "pnpm run test:model && pnpm run test:profile && pnpm run test:clerk-host",
+    "test:clerk-host": "node --experimental-strip-types --no-warnings src/lib/clerk-host.test.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

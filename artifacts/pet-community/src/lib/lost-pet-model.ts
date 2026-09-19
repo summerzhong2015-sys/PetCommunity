@@ -336,7 +336,7 @@ export function predict(input: PredictionInput): Prediction {
   assignQuantiles(cells);
 
   const grid: Grid = { cells, cols: COLS, rows: ROWS, cellSize: CELL_SIZE };
-  const zones = extractZones(grid, input);
+  const zones = extractZones(grid, input, anchor);
   const rings = containmentRings(cells, anchor);
   const confidence = scoreConfidence(input, effectiveMinutes, zones);
   const drivers = describeDrivers(input, {
@@ -387,7 +387,14 @@ function pickAnchorSighting(sightings: Sighting[]): Sighting | null {
  * Pull the highest-probability clusters out of the field by repeatedly taking
  * the best remaining cell and claiming everything within a search radius of it.
  */
-function extractZones(grid: Grid, input: PredictionInput): SearchZone[] {
+/** Eight-point bearing, for telling two zones in the same place apart. */
+function bearing(from: Vec, to: Vec): string {
+  const angle = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
+  const names = ['east', 'north-east', 'north', 'north-west', 'west', 'south-west', 'south', 'south-east'];
+  return names[(Math.round(angle / 45) + 8) % 8];
+}
+
+function extractZones(grid: Grid, input: PredictionInput, anchor: Vec): SearchZone[] {
   const radius = input.species === 'cat' ? 70 : 110;
   const claimed = new Set<number>();
   const zones: SearchZone[] = [];
@@ -432,9 +439,38 @@ function extractZones(grid: Grid, input: PredictionInput): SearchZone[] {
 
   // Peaks are found sharpest-first, but a broad plateau can hold more total
   // probability than a sharp spike. Rank by the mass actually in each zone.
-  return zones
+  const ranked = zones
     .sort((a, b) => b.probability - a.probability)
     .map((zone, index) => ({ ...zone, rank: index + 1, id: `zone-${index + 1}` }));
+
+  // Two zones can land in the same named area, and "search Willow Gate thicket,
+  // then search Willow Gate thicket" is not an instruction anyone can follow.
+  // Repeated names get a distance and a bearing from the last known position,
+  // which is what someone standing there actually needs.
+  const counts = new Map<string, number>();
+  for (const zone of ranked) counts.set(zone.place, (counts.get(zone.place) ?? 0) + 1);
+
+  const used = new Set<string>();
+  return ranked.map((zone) => {
+    let place = zone.place;
+    if ((counts.get(zone.place) ?? 0) > 1) {
+      const away = distance(anchor, zone.centre);
+      // The closest zone often sits on the anchor itself, and "0 m east" is noise.
+      place =
+        away < 25
+          ? `${zone.place}, by the last known spot`
+          : `${zone.place}, ${Math.round(away / 10) * 10} m ${bearing(anchor, zone.centre)}`;
+    }
+    // Same area, same bearing, same rounded distance is rare but possible, and
+    // two identical entries in a numbered list is worse than an ugly suffix.
+    if (used.has(place)) {
+      let suffix = 2;
+      while (used.has(`${place} (${suffix})`)) suffix += 1;
+      place = `${place} (${suffix})`;
+    }
+    used.add(place);
+    return { ...zone, place };
+  });
 }
 
 function zoneReason(centre: Vec, kind: TerrainKind, input: PredictionInput): string {

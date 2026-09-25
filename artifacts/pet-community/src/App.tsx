@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ClerkProvider, SignIn, SignUp } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
@@ -88,6 +88,12 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
   const { isSignedIn } = useAuthUser();
   const { signOut } = useAuthActions();
   const active = (href: string) => href === '/' ? location === '/' : location.startsWith(href);
+  // A toast that never leaves reads as a stale confirmation of whatever you just did.
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 4200);
+    return () => clearTimeout(timer);
+  }, [notice, setNotice]);
   return (
     <div className="app-shell md:flex">
       <aside className="hidden md:flex md:w-64 md:flex-col md:shrink-0 bg-sidebar text-sidebar-foreground p-5">
@@ -280,8 +286,13 @@ function AppContent() {
   );
   const profile = useMemo(() => normalizeProfile(storedProfile), [storedProfile]);
   const setProfile = setStoredProfile;
-  const notify = (n: Notice) => setNotice(n);
-  return <Shell profile={profile} notice={notice} setNotice={setNotice}><RoutedErrorBoundary><Switch><Route path="/" component={() => <Home notify={notify} profile={profile} />} /><Route path="/nearby" component={() => <Nearby notify={notify} />} /><Route path="/walks" component={() => <Walks notify={notify} />} /><Route path="/events" component={() => <Events notify={notify} />} /><Route path="/lost-pets" component={() => <LostPets notify={notify} profile={profile} />} /><Route path="/lost-pets/:id">{(params: { id: string }) => <LostPetSearch caseId={params.id} notify={notify} />}</Route><Route path="/adopt" component={() => <Adopt notify={notify} />} /><Route path="/shelters" component={() => <Shelters notify={notify} />} /><Route path="/give" component={() => <Give notify={notify} />} /><Route path="/messages" component={() => <Messages notify={notify} />} /><Route path="/profile" component={() => <Profile profile={profile} setProfile={setProfile} notify={notify} signedInAs={signedInAs} />} /><Route component={NotFoundView} /></Switch></RoutedErrorBoundary></Shell>;
+  // Stable so children that depend on it are not re-created on every notice.
+  const notify = useCallback((n: Notice) => setNotice(n), []);
+  // wouter's `component={() => ...}` prop builds a NEW component type on every
+  // render of this file, so any notice would unmount and remount the whole page
+  // and throw away its state (a sent message, an open panel). The children form
+  // keeps the same component identity across renders.
+  return <Shell profile={profile} notice={notice} setNotice={setNotice}><RoutedErrorBoundary><Switch><Route path="/">{() => <Home notify={notify} profile={profile} />}</Route><Route path="/nearby">{() => <Nearby notify={notify} />}</Route><Route path="/walks">{() => <Walks notify={notify} />}</Route><Route path="/events">{() => <Events notify={notify} />}</Route><Route path="/lost-pets">{() => <LostPets notify={notify} profile={profile} />}</Route><Route path="/lost-pets/:id">{(params: { id: string }) => <LostPetSearch caseId={params.id} notify={notify} />}</Route><Route path="/adopt">{() => <Adopt notify={notify} />}</Route><Route path="/shelters">{() => <Shelters notify={notify} />}</Route><Route path="/give">{() => <Give notify={notify} />}</Route><Route path="/messages">{() => <Messages notify={notify} />}</Route><Route path="/profile">{() => <Profile profile={profile} setProfile={setProfile} notify={notify} signedInAs={signedInAs} />}</Route><Route component={NotFoundView} /></Switch></RoutedErrorBoundary></Shell>;
 }
 
 function AccountsOff({ heading }: { heading: string }) {

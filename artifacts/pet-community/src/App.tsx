@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ClerkProvider, SignIn, SignUp } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
@@ -29,6 +29,7 @@ import { Walks } from '@/pages/walks';
 import { review, type Verdict } from '@/lib/moderation';
 import { PetPortrait, type PortraitSpec } from '@/components/pet-portrait';
 import { Sky } from '@/components/sky';
+import { themeFor, themeVariables } from '@/lib/themes';
 import {
   defaultProfile,
   isProfileStarted,
@@ -84,6 +85,10 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
   const active = (href: string) => href === '/' ? location === '/' : location.startsWith(href);
   // Signed in, or a profile already filled in and kept in this browser.
   const showProfileCard = isSignedIn || isProfileStarted(profile);
+  // Each section gets its own palette. Only the colours that carry meaning
+  // move — the paper and the type stay put — so the app still reads as one
+  // place. See lib/themes.ts; the contrast is tested, not eyeballed.
+  const theme = themeFor(location);
   // A toast that never leaves reads as a stale confirmation of whatever you just did.
   useEffect(() => {
     if (!notice) return;
@@ -91,7 +96,11 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
     return () => clearTimeout(timer);
   }, [notice, setNotice]);
   return (
-    <div className="app-shell md:flex">
+    <div
+      className="app-shell md:flex theme-surface"
+      style={themeVariables(theme) as CSSProperties}
+      data-theme={theme.name.toLowerCase().replace(' ', '-')}
+    >
       <aside className="hidden md:flex md:w-64 md:flex-col md:shrink-0 bg-sidebar text-sidebar-foreground p-5">
         <Link href="/" className="flex items-center gap-3 px-2 py-3 mb-5" data-testid="link-brand">
           <span className="grid place-items-center w-10 h-10 rounded-2xl bg-sidebar-primary text-sidebar-primary-foreground"><Dog size={22} /></span>
@@ -130,7 +139,10 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
           </div>
         </div>
       </aside>
-      <div className="flex-1 min-w-0 pb-20 md:pb-0 relative">
+      <div
+        className="flex-1 min-w-0 pb-20 md:pb-0 relative theme-surface"
+        style={{ backgroundColor: `hsl(${theme.tint})` }}
+      >
         {/* Decoration, behind everything: later siblings paint over it. */}
         <Sky />
         <header className="sticky top-0 z-20 md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-background/90 backdrop-blur">

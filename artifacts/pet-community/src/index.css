@@ -326,6 +326,11 @@
 @keyframes value-bump { 0% { transform: translateY(0); } 34% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
 .value-bump { display: inline-block; animation: value-bump .62s cubic-bezier(.3,1.4,.5,1); color: hsl(var(--primary)); }
 
+/* Sections have their own palettes. Easing the change keeps a tab switch from
+   flashing a new colour at you; the tokens themselves are set in App.tsx. */
+.theme-surface { transition: background-color 700ms ease; }
+@media (prefers-reduced-motion: reduce) { .theme-surface { transition: none; } }
+
 /* The scene behind the app: drifting clouds and a slow twinkle. Long loops on
    purpose — the sky should reward a glance, not demand one. */
 @keyframes sky-drift { from { transform: translateX(-9%); } to { transform: translateX(9%); } }

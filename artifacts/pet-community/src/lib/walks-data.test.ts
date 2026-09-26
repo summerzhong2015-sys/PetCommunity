@@ -1,10 +1,11 @@
 /**
  * Tests for the walk routes.
  *
- * The page now leans on every route carrying the same set of facts: the card
- * compares them side by side, so one walk missing its water line or its climb
- * leaves a hole in the grid rather than a shorter card. These check that each
- * route is actually filled in, and that no two say the same thing.
+ * Every route is expected to carry the same set of facts, because the opened
+ * panel lays them out in a fixed grid — one walk missing its water line or its
+ * climb leaves a hole rather than a shorter panel. These check that each route
+ * is actually filled in, that the stops run start to finish in order, and that
+ * no two routes say the same thing.
  *
  * Run with:  pnpm --filter @workspace/pet-community run test:walks
  */
@@ -55,14 +56,16 @@ for (const walk of defaultWalks) {
   check(`${walk.name}: warns about something`, walk.headsUp.length >= 2 && walk.headsUp.every((h) => h.length > 20));
   check(`${walk.name}: says how to get there`, walk.parking.trim().length > 15);
   check(`${walk.name}: says how accessible it is`, walk.accessibility.trim().length > 15);
-  check(`${walk.name}: accessibility survives being cut to one sentence for the card`,
-    walk.accessibility.includes('.') && walk.accessibility.split('.')[0].trim().length > 10,
-    walk.accessibility.split('.')[0]);
+  check(`${walk.name}: has a drawn scene`, ['creek', 'park', 'ridge'].includes(walk.scene), walk.scene);
   check(`${walk.name}: carries neighbour notes`,
     walk.notes.length >= 2 && walk.notes.every((n) => n.by.trim() !== '' && n.text.trim().length > 20));
   check(`${walk.name}: nobody is quoted twice on one route`,
     new Set(walk.notes.map((n) => n.by)).size === walk.notes.length);
 }
+
+check('every route is drawn as a different place',
+  new Set(defaultWalks.map((w) => w.scene)).size === defaultWalks.length,
+  defaultWalks.map((w) => w.scene).join(' '));
 
 // Routes should read as different places, not one place described three ways.
 for (const field of ['surface', 'climb', 'water', 'offLeash'] as const) {

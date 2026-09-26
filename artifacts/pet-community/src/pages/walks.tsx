@@ -1,12 +1,11 @@
 /**
  * Walking routes.
  *
- * Two layers on purpose. The card carries everything you compare routes by —
- * surface, climb, shade, water, off-leash, and how busy it gets across the day
- * — because choosing a walk means weighing three of them against each other,
- * and that cannot happen if each one is behind its own click. The click is
- * reserved for what you read once you have chosen: the stops along the way,
- * what to watch for, parking, and what neighbours have said.
+ * The card is a picture and a name. Everything factual lives behind the click:
+ * the surface, the climb, the shade, the water, how busy it gets across the
+ * day, the stops along the way, the warnings, parking, and what neighbours
+ * have said. Three drawn scenes in a row read as three places you might go;
+ * three grids of facts read as homework.
  *
  * The details open inside the card you clicked. They used to render in a panel
  * below the whole grid, which on anything narrower than a wide desktop put them
@@ -32,11 +31,10 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { PageHeader, useStored, type Notify } from '@/components/page-bits';
+import { WalkScene } from '@/components/walk-scene';
 import { BUSY_LABEL, busyBars, defaultWalks, type Walk } from '@/lib/walks-data';
 
-const BANNERS = ['bg-[#b8cdb9]', 'bg-[#e4c988]', 'bg-[#c9d8d4]'];
-
-/** One line of the at-a-glance block. */
+/** One fact in the opened panel. */
 function Fact({ icon: Icon, label, value }: { icon: typeof Sun; label: string; value: string }) {
   return (
     <div className="flex gap-2.5">
@@ -103,7 +101,7 @@ export function Walks({ notify }: { notify: Notify }) {
             <em className="text-primary not-italic">little local lore.</em>
           </>
         }
-        description="Familiar loops, honest details, and a peek at who is out there now. Everything you would weigh up is on the card — open one when you have picked your walk."
+        description="Familiar loops, honest details, and a peek at who is out there now. Open a route for the surface underfoot, the stops along the way, and what neighbours say to watch for."
       />
 
       <section className="page-wrap pb-10">
@@ -117,26 +115,18 @@ export function Walks({ notify }: { notify: Notify }) {
                 className={`paper-card overflow-hidden reveal reveal-delay-${Math.min(i + 1, 3)} ${open ? 'ring-2 ring-primary' : ''}`}
                 data-testid={`card-walk-${walk.id}`}
               >
-                <div className={`h-32 relative ${BANNERS[i % BANNERS.length]}`}>
-                  <div
-                    className="absolute inset-0 opacity-40"
-                    style={{
-                      backgroundImage:
-                        'linear-gradient(135deg, transparent 45%, hsl(158 35% 29% / .25) 46%, transparent 48%), linear-gradient(25deg, transparent 55%, hsl(42 32% 96% / .6) 56%, transparent 58%)',
-                      backgroundSize: '44px 44px',
-                    }}
-                  />
-                  <span className="absolute top-4 left-4 tag bg-card/80">{walk.level}</span>
+                <div className="h-36 relative">
+                  <WalkScene kind={walk.scene} className="absolute inset-0 w-full h-full" />
+                  <span className="absolute top-4 left-4 tag bg-card/85 backdrop-blur-sm">{walk.level}</span>
                   <button
                     onClick={() => toggleSaved(walk)}
-                    className={`absolute top-3 right-3 grid place-items-center w-9 h-9 rounded-full ${walk.saved ? 'bg-accent text-accent-foreground' : 'bg-card/85'}`}
+                    className={`absolute top-3 right-3 grid place-items-center w-9 h-9 rounded-full ${walk.saved ? 'bg-accent text-accent-foreground' : 'bg-card/85 backdrop-blur-sm'}`}
                     aria-label={`${walk.saved ? 'Unsave' : 'Save'} ${walk.name}`}
                     aria-pressed={Boolean(walk.saved)}
                     data-testid={`button-save-walk-${walk.id}`}
                   >
                     <Bookmark size={16} fill={walk.saved ? 'currentColor' : 'none'} />
                   </button>
-                  <RouteIcon className="absolute bottom-4 right-5 text-primary/70" size={43} strokeWidth={1.2} />
                 </div>
 
                 <div className="p-5">
@@ -158,29 +148,6 @@ export function Walks({ notify }: { notify: Notify }) {
                   </div>
                   <p className="text-sm leading-relaxed mt-4">{walk.description}</p>
 
-                  {/* At a glance — on the card, because this is what you compare. */}
-                  <div className="grid sm:grid-cols-2 gap-x-5 gap-y-4 mt-5 pt-5 border-t border-border" data-testid={`glance-walk-${walk.id}`}>
-                    <Fact icon={Footprints} label="Surface" value={walk.surface} />
-                    <Fact icon={Mountain} label="Climb" value={walk.climb} />
-                    <Fact icon={Sun} label="Shade" value={walk.shade} />
-                    <Fact icon={Droplets} label="Water" value={walk.water} />
-                    <Fact icon={UsersRound} label="Off-leash" value={walk.offLeash} />
-                    <Fact icon={Accessibility} label="Access" value={walk.accessibility.split('.')[0] + '.'} />
-                  </div>
-
-                  <div className="mt-5 pt-5 border-t border-border">
-                    <p className="eyebrow mb-2.5">How busy, through the day</p>
-                    <BusyStrip walk={walk} />
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 mt-5">
-                    {walk.suits.map((tag) => (
-                      <span key={tag} className="tag">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
                   <div className="flex items-center justify-between gap-3 mt-5 pt-4 border-t border-border">
                     <span className="text-xs text-muted-foreground">
                       <strong className="text-primary">{walk.active}</strong> out now
@@ -192,7 +159,7 @@ export function Walks({ notify }: { notify: Notify }) {
                       className="text-xs font-bold text-primary inline-flex items-center gap-1"
                       data-testid={`button-open-walk-${walk.id}`}
                     >
-                      {open ? 'Hide the full route' : 'The full route'}
+                      {open ? 'Hide the details' : 'All the details'}
                       <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
                     </button>
                   </div>
@@ -203,6 +170,29 @@ export function Walks({ notify }: { notify: Notify }) {
                       className="mt-5 pt-5 border-t border-border reveal space-y-6"
                       data-testid={`panel-walk-details-${walk.id}`}
                     >
+                      {/* The shape of the route. */}
+                      <div className="grid sm:grid-cols-2 gap-x-5 gap-y-4" data-testid={`glance-walk-${walk.id}`}>
+                        <Fact icon={Footprints} label="Surface" value={walk.surface} />
+                        <Fact icon={Mountain} label="Climb" value={walk.climb} />
+                        <Fact icon={Sun} label="Shade" value={walk.shade} />
+                        <Fact icon={Droplets} label="Water" value={walk.water} />
+                        <Fact icon={UsersRound} label="Off-leash" value={walk.offLeash} />
+                        <Fact icon={MapPin} label="Where" value={walk.neighborhood} />
+                      </div>
+
+                      <div>
+                        <p className="eyebrow mb-2.5">How busy, through the day</p>
+                        <BusyStrip walk={walk} />
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {walk.suits.map((tag) => (
+                          <span key={tag} className="tag">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+
                       {/* Stops, in order, so the route can be followed. */}
                       <div>
                         <p className="eyebrow mb-3">Along the way</p>

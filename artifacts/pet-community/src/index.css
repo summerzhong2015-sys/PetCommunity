@@ -326,6 +326,17 @@
 @keyframes value-bump { 0% { transform: translateY(0); } 34% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
 .value-bump { display: inline-block; animation: value-bump .62s cubic-bezier(.3,1.4,.5,1); color: hsl(var(--primary)); }
 
+/* The scene behind the app: drifting clouds and a slow twinkle. Long loops on
+   purpose — the sky should reward a glance, not demand one. */
+@keyframes sky-drift { from { transform: translateX(-9%); } to { transform: translateX(9%); } }
+@keyframes sky-twinkle { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+.sky-drift-slow { animation: sky-drift 150s ease-in-out infinite alternate; }
+.sky-drift-slower { animation: sky-drift 230s ease-in-out infinite alternate; }
+.sky-twinkle { animation: sky-twinkle 5.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sky-drift-slow, .sky-drift-slower, .sky-twinkle { animation: none; }
+}
+
 @keyframes reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {

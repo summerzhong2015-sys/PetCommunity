@@ -1,12 +1,10 @@
 /**
  * Neighbourhood walking routes.
  *
- * Split deliberately in two. Everything under "at a glance" is what decides
- * whether a route suits you right now — surface, climb, shade, water, how busy
- * it is at this hour — so it sits on the card where you can compare three
- * routes side by side without opening anything. What needs reading rather than
- * scanning — the turn-by-turn stops, the warnings, parking, what neighbours
- * have said — waits behind a click.
+ * The card stays a picture and a name. Everything factual — surface, climb,
+ * shade, water, off-leash, how busy it gets, the stops along the way, the
+ * warnings, parking, what neighbours have said — opens when you click, so the
+ * grid reads as three places rather than three spreadsheets.
  */
 
 export type Busyness = 'quiet' | 'steady' | 'busy';
@@ -29,8 +27,12 @@ export type NeighbourNote = {
   text: string;
 };
 
+import type { SceneKind } from '@/components/walk-scene';
+
 export type Walk = {
   id: string;
+  /** Which drawn scene heads the card. */
+  scene: SceneKind;
   name: string;
   neighborhood: string;
   distance: string;
@@ -67,6 +69,7 @@ export type Walk = {
 export const defaultWalks: Walk[] = [
   {
     id: 'w1',
+    scene: 'creek',
     name: 'Creekside Loop',
     neighborhood: 'North Creek',
     distance: '2.8 km',
@@ -110,6 +113,7 @@ export const defaultWalks: Walk[] = [
   },
   {
     id: 'w2',
+    scene: 'park',
     name: 'Maple Park Circuit',
     neighborhood: 'Maple Park',
     distance: '1.6 km',
@@ -152,6 +156,7 @@ export const defaultWalks: Walk[] = [
   },
   {
     id: 'w3',
+    scene: 'ridge',
     name: 'Hilltop Lookout',
     neighborhood: 'East Ridge',
     distance: '4.2 km',

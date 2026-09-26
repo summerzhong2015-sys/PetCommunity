@@ -10,11 +10,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:model": "node --experimental-strip-types --no-warnings src/lib/lost-pet-model.test.ts",
     "test:profile": "node --experimental-strip-types --no-warnings src/lib/profile.test.ts",
-    "test": "pnpm run test:model && pnpm run test:profile && pnpm run test:clerk-host && pnpm run test:moderation && pnpm run test:reunions && pnpm run test:walks",
+    "test": "pnpm run test:model && pnpm run test:profile && pnpm run test:clerk-host && pnpm run test:moderation && pnpm run test:reunions && pnpm run test:walks && pnpm run test:daylight",
     "test:clerk-host": "node --experimental-strip-types --no-warnings src/lib/clerk-host.test.ts",
     "test:moderation": "node --experimental-strip-types --no-warnings src/lib/moderation.test.ts",
     "test:reunions": "node --experimental-strip-types --no-warnings src/lib/reunions.test.ts",
-    "test:walks": "node --experimental-strip-types --no-warnings src/lib/walks-data.test.ts"
+    "test:walks": "node --experimental-strip-types --no-warnings src/lib/walks-data.test.ts",
+    "test:daylight": "node --experimental-strip-types --no-warnings src/lib/daylight.test.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

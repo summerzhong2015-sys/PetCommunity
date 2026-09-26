@@ -28,6 +28,7 @@ import { Profile } from '@/pages/profile';
 import { Walks } from '@/pages/walks';
 import { review, type Verdict } from '@/lib/moderation';
 import { PetPortrait, type PortraitSpec } from '@/components/pet-portrait';
+import { Sky } from '@/components/sky';
 import {
   defaultProfile,
   isProfileStarted,
@@ -129,7 +130,9 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
           </div>
         </div>
       </aside>
-      <div className="flex-1 min-w-0 pb-20 md:pb-0">
+      <div className="flex-1 min-w-0 pb-20 md:pb-0 relative">
+        {/* Decoration, behind everything: later siblings paint over it. */}
+        <Sky />
         <header className="sticky top-0 z-20 md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-background/90 backdrop-blur">
           <Link href="/" className="flex items-center gap-2" data-testid="link-mobile-brand"><span className="grid place-items-center w-8 h-8 rounded-xl bg-primary text-primary-foreground"><Dog size={17} /></span><strong className="serif text-lg">PetCommunity</strong></Link>
           {showProfileCard || !authEnabled ? <Link href="/profile" className="relative p-1 rounded-xl flex items-center gap-1.5" aria-label="See and edit your pet profile" title="See and edit your pet profile" data-testid="link-mobile-profile">

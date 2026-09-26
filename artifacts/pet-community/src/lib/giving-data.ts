@@ -28,6 +28,8 @@ export type Campaign = {
   updates: CampaignUpdate[];
   /** Portrait for campaigns about a specific animal. */
   portrait?: PortraitSpec;
+  /** A photograph of the animal a campaign is for, where there is one. */
+  photo?: string;
   /** Shown when a local business is matching contributions. */
   matchNote?: string;
 };
@@ -68,6 +70,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c2',
+    photo: '1668970565681-9373b86a1d4e',
     title: 'Keep Bess with Mr Halloran',
     beneficiary: 'Dennis Halloran, Alder Street',
     kind: 'neighbour',
@@ -98,6 +101,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c3',
+    photo: '1637424864218-b040b739ac44',
     title: 'Nutmeg needs a hip',
     beneficiary: 'Maple Ridge Animal Shelter',
     kind: 'pet',

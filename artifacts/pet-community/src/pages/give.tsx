@@ -23,7 +23,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { PetPortrait } from '@/components/pet-portrait';
+import { PetPhoto } from '@/components/pet-photo';
 import { CountUp, PageHeader, ProgressBar, Stat, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
 import {
   CAMPAIGNS,
@@ -170,7 +170,13 @@ export function Give({ notify }: { notify: Notify }) {
               >
                 <div className="flex items-start gap-4">
                   {campaign.portrait ? (
-                    <PetPortrait spec={campaign.portrait} className="w-16 h-16 shrink-0" rounded={30} />
+                    <PetPhoto
+                      photo={campaign.photo}
+                      portrait={campaign.portrait}
+                      alt={`${campaign.title}`}
+                      className="w-16 h-16 shrink-0 rounded-[1.3rem]"
+                      width={200}
+                    />
                   ) : (
                     <span className="grid place-items-center w-16 h-16 rounded-[1.1rem] bg-secondary text-primary shrink-0">
                       <Icon size={26} strokeWidth={1.6} />

@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { CountUp, EmptyState, PageHeader, useTicker, type Notify } from '@/components/page-bits';
+import { PetPhoto } from '@/components/pet-photo';
 import {
   COAT_PRESETS,
   DEFAULT_PORTRAIT,
@@ -582,7 +583,13 @@ function AlertCard({
       <div className="flex items-start justify-between gap-4">
         <div className="flex gap-3">
           <span className="relative shrink-0">
-            <PetPortrait spec={item.portrait} className="w-14 h-14" rounded={22} />
+            <PetPhoto
+              photo={item.photo}
+              portrait={item.portrait}
+              alt={`${item.petName}, a ${item.breed}`}
+              className="w-14 h-14 rounded-[1.1rem]"
+              width={180}
+            />
             <span
               className={`absolute -bottom-1 -right-1 grid place-items-center w-6 h-6 rounded-full border-2 border-card ${isActive ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'}`}
             >

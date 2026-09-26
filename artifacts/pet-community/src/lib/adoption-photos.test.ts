@@ -1,15 +1,23 @@
 /**
- * Tests for the adoption photographs.
+ * Tests for the photographs, across adoption, the lost-pet board and giving.
  *
  * These images live on somebody else's server, so the risks are: a listing
- * missing one, two pets sharing a face, and a malformed id that renders a
+ * missing one, two animals sharing a face, and a malformed id that renders a
  * broken-image icon in the middle of the page. The drawn portrait is the
- * fallback for an image that fails to load, so every pet must still carry one.
+ * fallback for an image that fails to load, so every animal must still carry
+ * one.
+ *
+ * One reuse is deliberate and lives outside these modules: Miso is Camille's
+ * cat on Nearby, the cat in the Messages thread, and the cat on the lost-pet
+ * board, and shares a photograph across all three. Within the data files
+ * checked here, every face must be unique.
  *
  * Run with:  pnpm --filter @workspace/pet-community run test:adoption
  */
 
 import { ADOPTABLE_PETS } from './adoption-data.ts';
+import { LOST_CASES } from './lost-pet-data.ts';
+import { CAMPAIGNS } from './giving-data.ts';
 
 let pass = 0, fail = 0;
 const out: string[] = [];
@@ -55,6 +63,47 @@ for (const pet of ADOPTABLE_PETS) {
   check('a modern format is requested', url.includes('auto=format'));
   check('nothing is fetched at full quality', url.includes('q=72'));
   check('no premium host slips in', ADOPTABLE_PETS.every((p) => !p.photo?.startsWith('premium')));
+}
+
+// --- the lost-pet board ---------------------------------------------------
+for (const item of LOST_CASES) {
+  check(`${item.petName}: the seeded alert has a photograph`,
+    typeof item.photo === 'string' && item.photo.length > 0);
+  check(`${item.petName}: the photo id is well formed`,
+    /^[0-9]{10,16}-[0-9a-z]{12}$/.test(item.photo ?? ''), item.photo ?? '(none)');
+  check(`${item.petName}: keeps a drawing to fall back to`,
+    !!item.portrait?.coat?.base && item.portrait.species === item.species);
+}
+
+// --- giving ---------------------------------------------------------------
+for (const campaign of CAMPAIGNS) {
+  if (!campaign.portrait) {
+    check(`${campaign.title}: a campaign with no animal carries no photo`, !campaign.photo);
+    continue;
+  }
+  check(`${campaign.title}: the animal has a photograph`,
+    typeof campaign.photo === 'string' && campaign.photo.length > 0);
+  check(`${campaign.title}: the photo id is well formed`,
+    /^[0-9]{10,16}-[0-9a-z]{12}$/.test(campaign.photo ?? ''), campaign.photo ?? '(none)');
+}
+
+// --- across the whole app -------------------------------------------------
+{
+  const all = [
+    ...ADOPTABLE_PETS.map((p) => ({ where: `adopt/${p.name}`, photo: p.photo })),
+    ...LOST_CASES.map((c) => ({ where: `lost/${c.petName}`, photo: c.photo })),
+    ...CAMPAIGNS.map((c) => ({ where: `give/${c.title}`, photo: c.photo })),
+  ].filter((entry) => entry.photo);
+
+  const counts = new Map<string, string[]>();
+  for (const entry of all) {
+    counts.set(entry.photo!, [...(counts.get(entry.photo!) ?? []), entry.where]);
+  }
+  const repeated = [...counts.entries()].filter(([, places]) => places.length > 1);
+
+  check('a face is never reused where it would read as two different animals',
+    repeated.length === 0,
+    repeated.map(([p, places]) => `${p}: ${places.join(', ')}`).join(' | '));
 }
 
 console.log(out.join('\n'));

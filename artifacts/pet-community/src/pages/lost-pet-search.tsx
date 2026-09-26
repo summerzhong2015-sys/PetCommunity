@@ -33,7 +33,7 @@ import { PageHeader, Stat, useStored, useTicker, type Notify } from '@/component
 import { findCase, minutesMissing, timeOfDayNow } from '@/lib/lost-pet-data';
 import { formatAge, predict, type Sighting, type Weather } from '@/lib/lost-pet-model';
 import { readReport } from '@/lib/report-reader';
-import { PetPortrait } from '@/components/pet-portrait';
+import { PetPhoto } from '@/components/pet-photo';
 import { nearestLandmark, type Vec } from '@/lib/neighborhood-map';
 
 type StoredSighting = {
@@ -176,7 +176,13 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
         description={`${item.breed}. ${item.description}`}
         action={
           <div className="flex items-center gap-4">
-            <PetPortrait spec={item.portrait} className="w-20 h-20 shrink-0" rounded={30} />
+            <PetPhoto
+              photo={item.photo}
+              portrait={item.portrait}
+              alt={`${item.petName}, a ${item.breed}`}
+              className="w-20 h-20 shrink-0 rounded-[1.6rem]"
+              width={220}
+            />
             <Link href="/lost-pets" className="action-button button-quiet" data-testid="link-all-alerts">
               <ArrowLeft size={16} /> All alerts
             </Link>

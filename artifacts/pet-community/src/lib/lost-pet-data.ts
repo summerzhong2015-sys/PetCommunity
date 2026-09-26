@@ -40,6 +40,12 @@ export type LostCase = {
   weather: Weather;
   /** A likeness, so an alert reads as a missing animal rather than a form. */
   portrait: PortraitSpec;
+  /**
+   * A photograph, for the animals that came with the demo. A case you report
+   * yourself has no photo and uses the likeness you built — which is the honest
+   * behaviour anyway, since you would not have a stock photo of your own pet.
+   */
+  photo?: string;
 };
 
 /**
@@ -59,6 +65,7 @@ export function minutesMissing(item: LostCase): number {
 export const LOST_CASES: LostCase[] = [
   {
     id: 'l1',
+    photo: '1579694490401-925edd5ab2de',
     petName: 'Pip',
     species: 'dog',
     size: 'small',
@@ -106,6 +113,7 @@ export const LOST_CASES: LostCase[] = [
   },
   {
     id: 'l2',
+    photo: '1598752616969-12ffea9bd3de',
     petName: 'Miso',
     species: 'cat',
     size: 'small',
@@ -136,6 +144,7 @@ export const LOST_CASES: LostCase[] = [
   },
   {
     id: 'l3',
+    photo: '1786861633855-993e1b1cdbde',
     petName: 'Juniper',
     species: 'dog',
     size: 'medium',

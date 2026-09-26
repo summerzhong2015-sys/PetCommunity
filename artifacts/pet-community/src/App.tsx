@@ -8,7 +8,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   AlertTriangle, ArrowRight, BellRing, CheckCircle2, ChevronLeft, Dog, Footprints,
   Heart, HeartHandshake, House, Info, MapPin, MessageCircle, MessageSquare, PawPrint,
-  Pencil, Plus, Send, ShieldCheck, Sparkles, UsersRound, X,
+  Pencil, Plus, Send, ShieldCheck, Sparkles, UsersRound, X, Clock3, UserPlus,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import {
@@ -31,6 +31,12 @@ import { PetPortrait, type PortraitSpec } from '@/components/pet-portrait';
 import { Sky } from '@/components/sky';
 import { PetPhoto } from '@/components/pet-photo';
 import { describeDistance, metresBetween, withinCircle } from '@/lib/neighbours';
+import { NEIGHBOURS } from '@/lib/neighbours-data';
+import {
+  OPENER_LIMIT, SIMULATED_REPLY_MS,
+  accept as acceptRequest, askable, canSend, checkOpener, decline as declineRequest,
+  inbox, requestThread, type Thread,
+} from '@/lib/chat-requests';
 import { backgroundFor, themeFor, themeVariables } from '@/lib/themes';
 import {
   defaultProfile,
@@ -51,7 +57,7 @@ const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 type Post = { id: string; author: string; initials: string; petType?: PetType; portrait?: PortraitSpec; time: string; title?: string; body: string; tag: string; likes: number; comments: string[]; accent: string; };
-type Thread = { id: string; name: string; initials: string; pet: string; preview: string; messages: { from: 'them' | 'me'; text: string; time: string }[]; };
+
 
 const defaultPosts: Post[] = [
   { id: 'p1', author: 'Maya Chen', initials: 'MC', time: '18 min ago', title: 'The tennis ball has been found', body: 'A sunny loop around Maple Park and Juniper is now officially tired. Thank you to whoever left the squeaky orange ball by the bench — Juniper says it was the highlight of her morning.', tag: 'Maple Park', likes: 14, comments: ['This made my morning. Give Juniper a scratch from us.'], accent: 'coral' },
@@ -59,9 +65,9 @@ const defaultPosts: Post[] = [
   { id: 'p3', author: 'Nora Williams', initials: 'NW', time: '2 hr ago', title: 'Found: blue collar near Willow Gate', body: 'Small blue nylon collar, no tag. I left it with the park attendant at Willow Gate so it stays dry. Hope it finds its person.', tag: 'Kind find', likes: 21, comments: ['The owner was looking earlier — passing this along.'], accent: 'sage' },
 ];
 const defaultThreads: Thread[] = [
-  { id: 't1', name: 'Rowan Bell', initials: 'RB', pet: 'Pip · terrier', preview: 'Thank you for keeping an eye out.', messages: [{ from: 'them', text: 'Hi, I am Pip’s person. Thank you for keeping an eye out near Willow Gate.', time: '9:04 AM' }, { from: 'me', text: 'Of course. I will let you know if I see him on the creek path.', time: '9:11 AM' }] },
-  { id: 't2', name: 'Camille Jones', initials: 'CJ', pet: 'Miso · tabby', preview: 'Miso likes the quiet side of the garden.', messages: [{ from: 'them', text: 'Miso likes the quiet side of the garden, just in case you spot her.', time: 'Yesterday' }] },
-  { id: 't3', name: 'Theo Alvarez', initials: 'TA', pet: 'Basil · retriever mix', preview: 'Creekside at 5:30?', messages: [{ from: 'them', text: 'Creekside at 5:30?', time: 'Mon' }, { from: 'me', text: 'We will join for the first loop.', time: 'Mon' }] },
+  { id: 't1', state: 'open' as const, name: 'Rowan Bell', initials: 'RB', pet: 'Pip · terrier', preview: 'Thank you for keeping an eye out.', messages: [{ from: 'them', text: 'Hi, I am Pip’s person. Thank you for keeping an eye out near Willow Gate.', time: '9:04 AM' }, { from: 'me', text: 'Of course. I will let you know if I see him on the creek path.', time: '9:11 AM' }] },
+  { id: 't2', state: 'open' as const, name: 'Camille Jones', initials: 'CJ', pet: 'Miso · tabby', preview: 'Miso likes the quiet side of the garden.', messages: [{ from: 'them', text: 'Miso likes the quiet side of the garden, just in case you spot her.', time: 'Yesterday' }] },
+  { id: 't3', state: 'open' as const, name: 'Theo Alvarez', initials: 'TA', pet: 'Basil · retriever mix', preview: 'Creekside at 5:30?', messages: [{ from: 'them', text: 'Creekside at 5:30?', time: 'Mon' }, { from: 'me', text: 'We will join for the first loop.', time: 'Mon' }] },
 ];
 
 
@@ -262,12 +268,7 @@ function Nearby({ notify, profile }: { notify: (n: Notice) => void; profile: Pet
   const [, setLocation] = useLocation();
   const [selected, setSelected] = useState<string | null>(null);
   const panel = useRevealWhen<HTMLDivElement>(selected);
-  type Neighbour = {
-    id: string; name: string; initials: string; pet: string; detail: string;
-    note: string; color: string; area: string;
-    photo?: string; avatar?: string; portrait?: PortraitSpec;
-  };
-  const people: Neighbour[] = [{ id: 'mara', area: 'the community garden', photo: '1761590961183-c838b662956f', name: 'Mara Singh', initials: 'MS', pet: 'Clover', detail: 'Border collie · 4 years', note: 'Usually exploring the garden loop', color: 'bg-[#d8e3c8]' }, { id: 'theo', area: 'the creek bend', photo: '1644187689076-37b6126afada', name: 'Theo Alvarez', initials: 'TA', pet: 'Basil', detail: 'Retriever mix · 2 years', note: 'Out walking until 6:15 today', color: 'bg-[#f2d9a7]' }, { id: 'nora', area: 'Maple Park south lawn', photo: '1649493850736-d5a1e47820a5', name: 'Nora Williams', initials: 'NW', pet: 'Penny', detail: 'Corgi · 6 years', note: 'Knows every shady bench', color: 'bg-[#e7c7bd]' }, { id: 'camille', area: 'Oak Terrace', photo: '1598752616969-12ffea9bd3de', name: 'Camille Jones', initials: 'CJ', pet: 'Miso', detail: 'Orange tabby · 3 years', note: 'Quiet garden side enthusiast', color: 'bg-[#d4dfe3]' }];
+  const people = NEIGHBOURS;
   // Distances are computed from the landmark each person chose, not written
   // down. You appear here only if you asked to, and only for people inside the
   // circle the page promises.
@@ -313,7 +314,42 @@ function Messages({ notify }: { notify: (n: Notice) => void }) {
   const [checking, setChecking] = useState(false);
   const endOfMessages = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState(() => { const value = localStorage.getItem('pc_draft') || ''; localStorage.removeItem('pc_draft'); return value; });
-  const selected = threads.find(t => t.id === selectedId) || threads[0];
+  // Starting a conversation: who you can ask, and the hello you are writing.
+  const [asking, setAsking] = useState(false);
+  const [askingWho, setAskingWho] = useState<string | null>(null);
+  const [opener, setOpener] = useState('');
+  const listed = inbox(threads);
+  const selected = listed.find(t => t.id === selectedId) || listed[0];
+  const open = canSend(selected);
+  const canAsk = askable(NEIGHBOURS, threads);
+  const chosen = canAsk.find(n => n.id === askingWho) ?? null;
+
+  function sendRequest() {
+    if (!chosen) return;
+    const verdict = checkOpener(opener);
+    if (!verdict.ok) { notify({ tone: 'error', text: verdict.reason }); return; }
+    const thread = requestThread(chosen, opener);
+    setThreads(current => [thread, ...current]);
+    setSelectedId(thread.id);
+    setAsking(false);
+    setAskingWho(null);
+    setOpener('');
+    notify({ tone: 'success', text: `Asked ${chosen.name.split(' ')[0]}. You will see it here if they say yes.` });
+
+    // Nobody is on the other end yet, so the demo answers. When there is a
+    // backend this call comes from it instead, and nothing else changes.
+    window.setTimeout(() => {
+      setThreads(current => current.map(t => t.id === thread.id
+        ? acceptRequest(t, new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }))
+        : t));
+      notify({ tone: 'success', text: `${chosen.name.split(' ')[0]} accepted. You can talk now.` });
+    }, SIMULATED_REPLY_MS);
+  }
+
+  function withdraw(thread: Thread) {
+    setThreads(current => current.map(t => (t.id === thread.id ? declineRequest(t) : t)));
+    notify({ tone: 'info', text: 'Request withdrawn.' });
+  }
   const deliver = (text: string) => {
     const message = { from: 'me' as const, text, time: 'Just now' };
     setThreads(current => current.map(thread => thread.id === selected.id ? { ...thread, preview: message.text, messages: [...thread.messages, message] } : thread));
@@ -338,9 +374,111 @@ function Messages({ notify }: { notify: (n: Notice) => void }) {
   // Keep the newest message in view. Without this the list only grew downward,
   // so everything sent landed below the fold and nothing seemed to happen.
   useEffect(() => { endOfMessages.current?.scrollIntoView({ block: 'nearest' }); }, [selected.messages.length, selectedId]);
-  return <main className="min-h-[calc(100dvh-4rem)]"><PageHeader eyebrow="Private, neighbor to neighbor" title="A small inbox." description="Conversations stay lightweight and local in this demo. No public profiles, no read receipts, no noise." /><section className="page-wrap pb-10"><div className="paper-card overflow-hidden grid md:grid-cols-[280px_minmax(0,1fr)] min-h-[500px]"><div className="border-b md:border-b-0 md:border-r border-border"><div className="p-4 border-b border-border flex items-center justify-between"><p className="eyebrow">Your conversations</p><button onClick={() => notify({ tone: 'info', text: 'Choose a nearby neighbor to start a private hello.' })} className="p-2 rounded-lg hover:bg-secondary" aria-label="Start a new message" data-testid="button-new-message"><Plus size={17} /></button></div>{threads.map(thread => <button key={thread.id} onClick={() => setSelectedId(thread.id)} className={`w-full text-left p-4 flex gap-3 border-b border-border ${selectedId === thread.id ? 'bg-secondary' : 'hover:bg-secondary/50'}`} data-testid={`button-thread-${thread.id}`}><Avatar initials={thread.initials} className="small" /><div className="min-w-0"><p className="font-bold text-sm">{thread.name}</p><p className="text-[11px] text-muted-foreground">{thread.pet}</p><p className="text-xs mt-1 truncate">{thread.preview}</p></div></button>)}</div><div ref={conversation} className="flex flex-col min-h-[500px]"><div className="p-4 md:p-5 border-b border-border flex items-center gap-3"><Avatar initials={selected.initials} className="small" /><div><h2 className="font-bold text-sm">{selected.name}</h2><p className="text-xs text-muted-foreground">{selected.pet} · neighborhood contact</p></div><span className="ml-auto tag"><ShieldCheck size={12} className="mr-1" />private</span></div><div className="flex-1 p-4 md:p-6 space-y-3 bg-background/40 overflow-y-auto max-h-[46vh] md:max-h-[52vh]" aria-live="polite">{selected.messages.map((message, i) => <div key={`${selected.id}-${i}`} className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`} data-testid={`message-${selected.id}-${i}`}><div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm ${message.from === 'me' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-secondary rounded-bl-sm'}`}><p>{message.text}</p><p className={`text-[10px] mt-2 ${message.from === 'me' ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>{message.time}</p></div></div>)}<div ref={endOfMessages} /></div><div className="border-t border-border">{verdict && verdict.level !== 'clean' && <div className={`px-3 md:px-4 pt-3 text-sm flex items-start gap-2.5 ${verdict.level === 'block' ? 'text-destructive' : 'text-muted-foreground'}`} role="alert" data-testid="notice-moderation">{verdict.level === 'block' ? <AlertTriangle size={16} className="shrink-0 mt-0.5" /> : <Info size={16} className="shrink-0 mt-0.5 text-primary" />}<span>{verdict.reason}{verdict.level === 'warn' && <em className="not-italic block text-xs mt-1">Press send again to send it anyway.</em>}</span></div>}<form onSubmit={send} className="p-3 md:p-4 flex gap-2"><label htmlFor="message-compose" className="sr-only">Write a message</label><input id="message-compose" className="field" value={draft} onChange={e => { setDraft(e.target.value); if (verdict?.level === 'block') setVerdict(null); }} placeholder={`Message ${selected.name.split(' ')[0]}...`} data-testid="input-message-compose" /><button type="submit" disabled={checking} className="action-button button-primary !px-3 disabled:opacity-60" aria-label="Send message" data-testid="button-send-message"><Send size={17} /></button></form></div></div></div></section></main>;
+  return <main className="min-h-[calc(100dvh-4rem)]"><PageHeader eyebrow="Private, neighbor to neighbor" title="A small inbox." description="Conversations stay lightweight and local in this demo. No public profiles, no read receipts, no noise." /><section className="page-wrap pb-10"><div className="paper-card overflow-hidden grid md:grid-cols-[280px_minmax(0,1fr)] min-h-[500px]"><div className="border-b md:border-b-0 md:border-r border-border"><div className="p-4 border-b border-border flex items-center justify-between"><p className="eyebrow">Your conversations</p><button onClick={() => { setAsking(v => !v); setAskingWho(null); setOpener(''); }} aria-expanded={asking} className="p-2 rounded-lg hover:bg-secondary" aria-label="Ask a neighbour for a chat" data-testid="button-new-message"><Plus size={17} className={`transition-transform ${asking ? 'rotate-45' : ''}`} /></button></div>{asking && <AskPanel neighbours={canAsk} chosen={chosen} onChoose={setAskingWho} opener={opener} onOpener={setOpener} onSend={sendRequest} onCancel={() => { setAsking(false); setAskingWho(null); }} />}
+{listed.map(thread => <button key={thread.id} onClick={() => setSelectedId(thread.id)} className={`w-full text-left p-4 flex gap-3 border-b border-border ${selected?.id === thread.id ? 'bg-secondary' : 'hover:bg-secondary/50'}`} data-testid={`button-thread-${thread.id}`}><Avatar initials={thread.initials} className="small" /><div className="min-w-0 flex-1"><p className="font-bold text-sm flex items-center gap-1.5">{thread.name}{thread.state === 'pending' && <Clock3 size={12} className="text-muted-foreground shrink-0" />}</p><p className="text-[11px] text-muted-foreground">{thread.pet}</p><p className={`text-xs mt-1 truncate ${thread.state === 'pending' ? 'italic text-muted-foreground' : ''}`}>{thread.preview}</p></div></button>)}</div><div ref={conversation} className="flex flex-col min-h-[500px]"><div className="p-4 md:p-5 border-b border-border flex items-center gap-3"><Avatar initials={selected.initials} className="small" /><div><h2 className="font-bold text-sm">{selected.name}</h2><p className="text-xs text-muted-foreground">{selected.pet} · neighborhood contact</p></div><span className="ml-auto tag"><ShieldCheck size={12} className="mr-1" />private</span></div><div className="flex-1 p-4 md:p-6 space-y-3 bg-background/40 overflow-y-auto max-h-[46vh] md:max-h-[52vh]" aria-live="polite">{selected.messages.map((message, i) => <div key={`${selected.id}-${i}`} className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`} data-testid={`message-${selected.id}-${i}`}><div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm ${message.from === 'me' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-secondary rounded-bl-sm'}`}><p>{message.text}</p><p className={`text-[10px] mt-2 ${message.from === 'me' ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>{message.time}</p></div></div>)}<div ref={endOfMessages} /></div><div className="border-t border-border">{!open ? <PendingPanel thread={selected} onWithdraw={() => withdraw(selected)} /> : <>{verdict && verdict.level !== 'clean' && <div className={`px-3 md:px-4 pt-3 text-sm flex items-start gap-2.5 ${verdict.level === 'block' ? 'text-destructive' : 'text-muted-foreground'}`} role="alert" data-testid="notice-moderation">{verdict.level === 'block' ? <AlertTriangle size={16} className="shrink-0 mt-0.5" /> : <Info size={16} className="shrink-0 mt-0.5 text-primary" />}<span>{verdict.reason}{verdict.level === 'warn' && <em className="not-italic block text-xs mt-1">Press send again to send it anyway.</em>}</span></div>}<form onSubmit={send} className="p-3 md:p-4 flex gap-2"><label htmlFor="message-compose" className="sr-only">Write a message</label><input id="message-compose" className="field" value={draft} onChange={e => { setDraft(e.target.value); if (verdict?.level === 'block') setVerdict(null); }} placeholder={`Message ${selected.name.split(' ')[0]}...`} data-testid="input-message-compose" /><button type="submit" disabled={checking} className="action-button button-primary !px-3 disabled:opacity-60" aria-label="Send message" data-testid="button-send-message"><Send size={17} /></button></form></>}</div></div></div></section></main>;
 }
 
+
+/** Choose a neighbour, write a hello, ask. */
+function AskPanel({
+  neighbours, chosen, onChoose, opener, onOpener, onSend, onCancel,
+}: {
+  neighbours: { id: string; name: string; initials: string; pet: string; detail: string }[];
+  chosen: { id: string; name: string } | null;
+  onChoose: (id: string) => void;
+  opener: string;
+  onOpener: (value: string) => void;
+  onSend: () => void;
+  onCancel: () => void;
+}) {
+  if (neighbours.length === 0) {
+    return (
+      <div className="p-4 border-b border-border" data-testid="panel-ask-empty">
+        <p className="text-sm">You have a conversation going with everyone in your circle.</p>
+        <button onClick={onCancel} className="action-button button-quiet w-full mt-3 text-xs min-h-0 py-2">Close</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 border-b border-border bg-secondary/40" data-testid="panel-ask">
+      <p className="eyebrow mb-2.5">Ask someone for a chat</p>
+      <div className="space-y-1.5">
+        {neighbours.map((person) => (
+          <button
+            key={person.id}
+            onClick={() => onChoose(person.id)}
+            aria-pressed={chosen?.id === person.id}
+            className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center gap-2.5 ${chosen?.id === person.id ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary'}`}
+            data-testid={`button-ask-${person.id}`}
+          >
+            <Avatar initials={person.initials} className="small" />
+            <span className="min-w-0">
+              <span className="block text-sm font-bold truncate">{person.name}</span>
+              <span className={`block text-[11px] truncate ${chosen?.id === person.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                {person.pet} · {person.detail}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {chosen && (
+        <form
+          className="mt-3"
+          onSubmit={(e) => { e.preventDefault(); onSend(); }}
+          data-testid="form-ask"
+        >
+          <label htmlFor="ask-opener" className="sr-only">Your hello</label>
+          <textarea
+            id="ask-opener"
+            className="field min-h-20"
+            value={opener}
+            maxLength={OPENER_LIMIT}
+            autoFocus
+            onChange={(e) => onOpener(e.target.value)}
+            placeholder={`Why you are saying hello to ${chosen.name.split(' ')[0]}...`}
+            data-testid="input-ask-opener"
+          />
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            They see this before they decide. {OPENER_LIMIT - opener.length} characters left.
+          </p>
+          <div className="flex gap-2 mt-2.5">
+            <button type="submit" className="action-button button-primary flex-1 text-xs min-h-0 py-2" data-testid="button-send-request">
+              <UserPlus size={14} /> Ask {chosen.name.split(' ')[0]}
+            </button>
+            <button type="button" onClick={onCancel} className="action-button button-quiet text-xs min-h-0 py-2" data-testid="button-cancel-ask">
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/** A request that has not been answered. No compose box until it is. */
+function PendingPanel({ thread, onWithdraw }: { thread: Thread; onWithdraw: () => void }) {
+  return (
+    <div className="p-4 md:p-5" data-testid="panel-pending">
+      <p className="font-bold text-sm flex items-center gap-2">
+        <Clock3 size={15} className="text-muted-foreground shrink-0" />
+        Waiting for {thread.name.split(' ')[0]} to accept
+      </p>
+      {thread.opener && (
+        <p className="prose-note text-muted-foreground mt-2">&ldquo;{thread.opener}&rdquo;</p>
+      )}
+      <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+        You cannot message someone until they have said yes &mdash; that is what keeps an inbox from being
+        somewhere strangers can put things. In this demo there is nobody on the other end, so the app answers
+        for them in a few seconds.
+      </p>
+      <button onClick={onWithdraw} className="action-button button-quiet text-xs min-h-0 py-2 mt-3" data-testid="button-withdraw">
+        Withdraw the request
+      </button>
+    </div>
+  );
+}
 
 function NotFoundView() { return <main className="page-wrap py-24 text-center"><p className="eyebrow">404 · off the path</p><h1 className="serif text-5xl mt-3">That page wandered off.</h1><p className="text-muted-foreground mt-3">Let’s get you back to the neighborhood.</p><Link href="/" className="action-button button-primary mt-6" data-testid="link-back-home"><ChevronLeft size={16} /> Back home</Link></main>; }
 

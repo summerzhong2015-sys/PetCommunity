@@ -1,8 +1,10 @@
 /**
  * Shelters, rescues and the animals currently looking for a home.
  *
- * Every pet carries a portrait spec rather than a photograph, so a listing is a
- * real likeness that loads instantly and never turns into a broken image.
+ * Every pet carries a photograph and a drawn portrait. The photograph is what
+ * a listing leads with, because a real animal is what makes someone stop
+ * scrolling; the portrait is the fallback when the image does not load, so a
+ * card is never empty. Photographs are from Unsplash.
  */
 
 import type { PortraitSpec } from '@/components/pet-portrait';
@@ -49,6 +51,12 @@ export type AdoptablePet = {
   needs: string;
   fee: number;
   portrait: PortraitSpec;
+  /**
+   * An Unsplash photo id, rendered at the top of the listing. The drawn
+   * portrait stays as the fallback: a listing must never come up blank because
+   * someone else's image host had a bad day.
+   */
+  photo?: string;
 };
 
 export const SHELTERS: Shelter[] = [
@@ -121,6 +129,7 @@ export const SHELTERS: Shelter[] = [
 export const ADOPTABLE_PETS: AdoptablePet[] = [
   {
     id: 'a1',
+    photo: '1768658773320-919944f76a0f',
     name: 'Marlow',
     species: 'dog',
     breed: 'Retriever mix',
@@ -148,6 +157,7 @@ export const ADOPTABLE_PETS: AdoptablePet[] = [
   },
   {
     id: 'a2',
+    photo: '1762686125027-2166ae5b0a1e',
     name: 'Pesto',
     species: 'cat',
     breed: 'Domestic shorthair',
@@ -175,6 +185,7 @@ export const ADOPTABLE_PETS: AdoptablePet[] = [
   },
   {
     id: 'a3',
+    photo: '1597576364579-075da59e710d',
     name: 'Dot',
     species: 'cat',
     breed: 'Domestic shorthair',
@@ -202,6 +213,7 @@ export const ADOPTABLE_PETS: AdoptablePet[] = [
   },
   {
     id: 'a4',
+    photo: '1754486369859-3fb07108a91e',
     name: 'Rooster',
     species: 'dog',
     breed: 'Terrier cross',
@@ -229,6 +241,7 @@ export const ADOPTABLE_PETS: AdoptablePet[] = [
   },
   {
     id: 'a5',
+    photo: '1614595402938-ecee8416e6b5',
     name: 'Juno',
     species: 'dog',
     breed: 'Shepherd mix',
@@ -256,6 +269,7 @@ export const ADOPTABLE_PETS: AdoptablePet[] = [
   },
   {
     id: 'a6',
+    photo: '1597068806585-c404c345c593',
     name: 'Clementine',
     species: 'cat',
     breed: 'Domestic longhair',
@@ -283,6 +297,7 @@ export const ADOPTABLE_PETS: AdoptablePet[] = [
   },
   {
     id: 'a7',
+    photo: '1623689278873-6981e40013ec',
     name: 'Bramble',
     species: 'dog',
     breed: 'Collie cross',
@@ -310,6 +325,7 @@ export const ADOPTABLE_PETS: AdoptablePet[] = [
   },
   {
     id: 'a8',
+    photo: '1548907084-a7e5f11d229d',
     name: 'Sable & Fig',
     species: 'cat',
     breed: 'Domestic shorthair, bonded pair',
@@ -337,6 +353,7 @@ export const ADOPTABLE_PETS: AdoptablePet[] = [
   },
   {
     id: 'a9',
+    photo: '1763941802516-0bd483f33f71',
     name: 'Ottoline',
     species: 'dog',
     breed: 'Spaniel mix',
@@ -364,6 +381,7 @@ export const ADOPTABLE_PETS: AdoptablePet[] = [
   },
   {
     id: 'a10',
+    photo: '1490650034439-fd184c3c86a5',
     name: 'Grits',
     species: 'cat',
     breed: 'Domestic shorthair',

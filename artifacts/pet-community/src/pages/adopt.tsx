@@ -24,7 +24,8 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { PetPortrait } from '@/components/pet-portrait';
+
+import { PetPhoto } from '@/components/pet-photo';
 import { EmptyState, PageHeader, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
 import { ADOPTABLE_PETS, SHELTERS, shelterOf, type AdoptablePet } from '@/lib/adoption-data';
 
@@ -103,7 +104,13 @@ export function Adopt({ notify }: { notify: Notify }) {
           <article className="paper-card overflow-hidden reveal" data-testid="card-longest-waiting">
             <div className="grid md:grid-cols-[220px_1fr] gap-0">
               <div className="p-6 pb-0 md:pb-6 md:pr-0 grid place-items-center">
-                <PetPortrait spec={longestWaiting.portrait} className="w-40 h-40 md:w-48 md:h-48" />
+                <PetPhoto
+                  photo={longestWaiting.photo}
+                  portrait={longestWaiting.portrait}
+                  alt={`${longestWaiting.name}, a ${longestWaiting.breed} looking for a home`}
+                  className="w-40 h-40 md:w-48 md:h-48 rounded-[2rem]"
+                  width={420}
+                />
               </div>
               <div className="p-6">
                 <p className="eyebrow">Longest in care</p>
@@ -182,7 +189,14 @@ export function Adopt({ notify }: { notify: Notify }) {
                   data-testid={`card-pet-${pet.id}`}
                 >
                   <div className="relative" style={{ background: pet.portrait.coat.bg }}>
-                    <PetPortrait spec={pet.portrait} className="w-full h-auto" rounded={0} />
+                    <PetPhoto
+                      photo={pet.photo}
+                      portrait={pet.portrait}
+                      alt={`${pet.name}, a ${pet.breed}`}
+                      className="w-full aspect-square"
+                      rounded={0}
+                      width={520}
+                    />
                     <span className={`tag absolute top-3 left-3 ${status.tone}`}>{status.label}</span>
                     <button
                       onClick={() => toggleSave(pet)}
@@ -314,7 +328,13 @@ function PetDetail({
     <div ref={panel} className="paper-card p-6 reveal" data-testid={`panel-pet-${pet.id}`}>
       <div className="flex justify-between items-start gap-4">
         <div className="flex items-center gap-4">
-          <PetPortrait spec={pet.portrait} className="w-20 h-20 shrink-0" />
+          <PetPhoto
+            photo={pet.photo}
+            portrait={pet.portrait}
+            alt={`${pet.name}, a ${pet.breed}`}
+            className="w-20 h-20 shrink-0 rounded-[1.4rem]"
+            width={200}
+          />
           <div>
             <p className="eyebrow">{pet.breed} · {pet.ageLabel} · {pet.sex}</p>
             <h2 className="serif text-3xl mt-1">{pet.name}</h2>
@@ -823,6 +843,14 @@ export function Shelters({ notify }: { notify: Notify }) {
             </article>
           );
         })}
+        <p className="text-xs text-muted-foreground mt-8" data-testid="credit-photos">
+          These are demonstration listings. The animals are not real adoptees &mdash; their
+          photographs come from{' '}
+          <a href="https://unsplash.com" target="_blank" rel="noreferrer noopener" className="underline">
+            Unsplash
+          </a>
+          , and everything written about them was made up for this demo.
+        </p>
       </section>
     </main>
   );

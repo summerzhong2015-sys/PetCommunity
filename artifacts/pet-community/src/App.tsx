@@ -6,10 +6,9 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
-  AlertTriangle, ArrowRight, BellRing, Bookmark, CalendarDays, Check, CheckCircle2,
-  ChevronLeft, Clock3, Dog, Footprints, Heart, House, Info, MapPin, Menu, MessageCircle,
-  MessageSquare, Plus, Route as RouteIcon, Search, Send, ShieldCheck, Sparkles,
-  UsersRound, X, PawPrint, HeartHandshake,
+  AlertTriangle, ArrowRight, BellRing, CheckCircle2, ChevronLeft, Dog, Footprints,
+  Heart, HeartHandshake, House, Info, MapPin, MessageCircle, MessageSquare, PawPrint,
+  Plus, Send, ShieldCheck, Sparkles, UsersRound, X,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import {
@@ -47,18 +46,12 @@ const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 type Post = { id: string; author: string; initials: string; petType?: PetType; portrait?: PortraitSpec; time: string; title?: string; body: string; tag: string; likes: number; comments: string[]; accent: string; };
-type EventItem = { id: string; title: string; date: string; time: string; place: string; host: string; note: string; attendees: number; rsvp: boolean; };
 type Thread = { id: string; name: string; initials: string; pet: string; preview: string; messages: { from: 'them' | 'me'; text: string; time: string }[]; };
 
 const defaultPosts: Post[] = [
   { id: 'p1', author: 'Maya Chen', initials: 'MC', time: '18 min ago', title: 'The tennis ball has been found', body: 'A sunny loop around Maple Park and Juniper is now officially tired. Thank you to whoever left the squeaky orange ball by the bench — Juniper says it was the highlight of her morning.', tag: 'Maple Park', likes: 14, comments: ['This made my morning. Give Juniper a scratch from us.'], accent: 'coral' },
   { id: 'p2', author: 'Theo Alvarez', initials: 'TA', time: '42 min ago', body: 'Heading down the creek path around 5:30 with Basil. We are doing a slow one today and have room for a couple of friendly stragglers.', tag: 'Out walking', likes: 9, comments: [], accent: 'ochre' },
   { id: 'p3', author: 'Nora Williams', initials: 'NW', time: '2 hr ago', title: 'Found: blue collar near Willow Gate', body: 'Small blue nylon collar, no tag. I left it with the park attendant at Willow Gate so it stays dry. Hope it finds its person.', tag: 'Kind find', likes: 21, comments: ['The owner was looking earlier — passing this along.'], accent: 'sage' },
-];
-const defaultEvents: EventItem[] = [
-  { id: 'e1', title: 'Sunday sniffari', date: 'Sun, Jun 16', time: '9:00 AM', place: 'Maple Park, north gate', host: 'Maya C.', note: 'A gentle, no-rush loop for curious noses and their people.', attendees: 8, rsvp: false },
-  { id: 'e2', title: 'Puppy patio hour', date: 'Thu, Jun 20', time: '6:15 PM', place: 'Fern & Finch courtyard', host: 'Theo A.', note: 'Small dogs and big feelings welcome. Water bowls provided.', attendees: 5, rsvp: true },
-  { id: 'e3', title: 'Leash skills, together', date: 'Sat, Jun 22', time: '10:30 AM', place: 'Willow Gate lawn', host: 'Nora W.', note: 'Share what works, practice in parallel, leave with fewer tangles.', attendees: 12, rsvp: false },
 ];
 const defaultThreads: Thread[] = [
   { id: 't1', name: 'Rowan Bell', initials: 'RB', pet: 'Pip · terrier', preview: 'Thank you for keeping an eye out.', messages: [{ from: 'them', text: 'Hi, I am Pip’s person. Thank you for keeping an eye out near Willow Gate.', time: '9:04 AM' }, { from: 'me', text: 'Of course. I will let you know if I see him on the creek path.', time: '9:11 AM' }] },
@@ -76,7 +69,6 @@ const navItems = [
   { href: '/', label: 'Neighborhood', icon: House, mobile: true },
   { href: '/nearby', label: 'Nearby', icon: UsersRound, mobile: false },
   { href: '/walks', label: 'Walks', icon: Footprints, mobile: false },
-  { href: '/events', label: 'Events', icon: CalendarDays, mobile: false },
   { href: '/lost-pets', label: 'Lost pets', icon: BellRing, mobile: true },
   { href: '/adopt', label: 'Adopt', icon: PawPrint, mobile: true },
   { href: '/give', label: 'Give', icon: HeartHandshake, mobile: true },
@@ -225,15 +217,6 @@ function Nearby({ notify }: { notify: (n: Notice) => void }) {
 }
 
 
-function Events({ notify }: { notify: (n: Notice) => void }) {
-  const [events, setEvents] = useStored<EventItem[]>('pc_events', defaultEvents);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', date: '', time: '', place: '', note: '' });
-  const addEvent = (e: FormEvent) => { e.preventDefault(); if (!form.title || !form.date || !form.time || !form.place) { notify({ tone: 'error', text: 'Add a title, date, time, and place to create an event.' }); return; } setEvents(current => [...current, { id: `e-${Date.now()}`, ...form, date: new Date(`${form.date}T12:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), host: 'You', attendees: 1, rsvp: true }]); setForm({ title: '', date: '', time: '', place: '', note: '' }); setCreateOpen(false); notify({ tone: 'success', text: 'Event created for your neighborhood.' }); };
-  return <main><PageHeader eyebrow="Small plans, good company" title={<>There is always room<br />for one more <em className="text-primary not-italic">friend.</em></>} description="Make a low-key plan, find a familiar face, or RSVP to something that sounds like your kind of Saturday." action={<button className="action-button button-accent" onClick={() => setCreateOpen(v => !v)} data-testid="button-create-event"><Plus size={17} /> Create an event</button>} /><section className="page-wrap pb-10">{createOpen && <form onSubmit={addEvent} className="paper-card p-5 md:p-6 mb-6 reveal" data-testid="form-create-event"><div className="flex items-start justify-between"><div><p className="eyebrow">New neighborhood plan</p><h2 className="serif text-2xl mt-1">Keep it simple.</h2></div><button type="button" onClick={() => setCreateOpen(false)} aria-label="Close create event form" data-testid="button-close-event-form"><X size={18} /></button></div><div className="grid sm:grid-cols-2 gap-3 mt-5"><label className="text-xs font-bold">Event name<input className="field mt-1" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Morning garden loop" data-testid="input-event-title" /></label><label className="text-xs font-bold">Date<input type="date" className="field mt-1" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} data-testid="input-event-date" /></label><label className="text-xs font-bold">Time<input type="text" className="field mt-1" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} placeholder="9:30 AM" data-testid="input-event-time" /></label><label className="text-xs font-bold">Place<input className="field mt-1" value={form.place} onChange={e => setForm({ ...form, place: e.target.value })} placeholder="Maple Park, south gate" data-testid="input-event-place" /></label></div><label className="block text-xs font-bold mt-3">A note for neighbors<textarea className="field mt-1 min-h-20" value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="What should people know?" data-testid="input-event-note" /></label><div className="flex justify-end mt-4"><button type="submit" className="action-button button-primary" data-testid="button-submit-event">Publish event <ArrowRight size={16} /></button></div></form>}<div className="flex items-center gap-3 mb-5"><span className="tag">This week</span><span className="text-xs text-muted-foreground">{events.length} plans in the circle</span></div><div className="space-y-3">{events.map((event, i) => <article key={event.id} className={`paper-card p-5 md:p-6 flex flex-col md:flex-row md:items-center gap-5 reveal reveal-delay-${Math.min(i + 1, 3)}`} data-testid={`card-event-${event.id}`}><div className="md:w-24 shrink-0"><p className="eyebrow text-primary">{event.date.split(',')[0]}</p><p className="serif text-2xl mt-1">{event.date.split(',').slice(1).join(',')}</p><p className="mono text-[10px] text-muted-foreground mt-1">{event.time}</p></div><div className="hidden md:block w-px h-16 bg-border" /><div className="flex-1"><h2 className="serif text-2xl">{event.title}</h2><p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><MapPin size={13} />{event.place} <span className="mx-1">·</span> hosted by {event.host}</p><p className="text-sm mt-3 leading-relaxed">{event.note}</p><p className="text-xs text-muted-foreground mt-3 flex items-center gap-1"><UsersRound size={13} />{event.attendees} neighbor{event.attendees === 1 ? '' : 's'} joining</p></div><button onClick={() => { setEvents(current => current.map(item => item.id === event.id ? { ...item, rsvp: !item.rsvp, attendees: item.attendees + (item.rsvp ? -1 : 1) } : item)); notify({ tone: 'success', text: event.rsvp ? 'RSVP removed.' : 'You are on the list.' }); }} className={`action-button shrink-0 ${event.rsvp ? 'button-accent' : 'button-quiet'}`} data-testid={`button-rsvp-event-${event.id}`}>{event.rsvp ? <><Check size={16} /> Going</> : 'I’m interested'}</button></article>)}</div></section></main>;
-}
-
-
 function Messages({ notify }: { notify: (n: Notice) => void }) {
   const [threads, setThreads] = useStored<Thread[]>('pc_threads', defaultThreads);
   const [selectedId, setSelectedId] = useState('t1');
@@ -292,7 +275,7 @@ function AppContent() {
   // render of this file, so any notice would unmount and remount the whole page
   // and throw away its state (a sent message, an open panel). The children form
   // keeps the same component identity across renders.
-  return <Shell profile={profile} notice={notice} setNotice={setNotice}><RoutedErrorBoundary><Switch><Route path="/">{() => <Home notify={notify} profile={profile} />}</Route><Route path="/nearby">{() => <Nearby notify={notify} />}</Route><Route path="/walks">{() => <Walks notify={notify} />}</Route><Route path="/events">{() => <Events notify={notify} />}</Route><Route path="/lost-pets">{() => <LostPets notify={notify} profile={profile} />}</Route><Route path="/lost-pets/:id">{(params: { id: string }) => <LostPetSearch caseId={params.id} notify={notify} />}</Route><Route path="/adopt">{() => <Adopt notify={notify} />}</Route><Route path="/shelters">{() => <Shelters notify={notify} />}</Route><Route path="/give">{() => <Give notify={notify} />}</Route><Route path="/messages">{() => <Messages notify={notify} />}</Route><Route path="/profile">{() => <Profile profile={profile} setProfile={setProfile} notify={notify} signedInAs={signedInAs} />}</Route><Route component={NotFoundView} /></Switch></RoutedErrorBoundary></Shell>;
+  return <Shell profile={profile} notice={notice} setNotice={setNotice}><RoutedErrorBoundary><Switch><Route path="/">{() => <Home notify={notify} profile={profile} />}</Route><Route path="/nearby">{() => <Nearby notify={notify} />}</Route><Route path="/walks">{() => <Walks notify={notify} />}</Route><Route path="/lost-pets">{() => <LostPets notify={notify} profile={profile} />}</Route><Route path="/lost-pets/:id">{(params: { id: string }) => <LostPetSearch caseId={params.id} notify={notify} />}</Route><Route path="/adopt">{() => <Adopt notify={notify} />}</Route><Route path="/shelters">{() => <Shelters notify={notify} />}</Route><Route path="/give">{() => <Give notify={notify} />}</Route><Route path="/messages">{() => <Messages notify={notify} />}</Route><Route path="/profile">{() => <Profile profile={profile} setProfile={setProfile} notify={notify} signedInAs={signedInAs} />}</Route><Route component={NotFoundView} /></Switch></RoutedErrorBoundary></Shell>;
 }
 
 function AccountsOff({ heading }: { heading: string }) {

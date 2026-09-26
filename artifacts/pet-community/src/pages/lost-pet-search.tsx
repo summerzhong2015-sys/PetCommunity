@@ -34,6 +34,7 @@ import { findCase, minutesMissing, timeOfDayNow } from '@/lib/lost-pet-data';
 import { formatAge, predict, type Sighting, type Weather } from '@/lib/lost-pet-model';
 import { readReport } from '@/lib/report-reader';
 import { PetPhoto } from '@/components/pet-photo';
+import { review } from '@/lib/moderation';
 import { nearestLandmark, type Vec } from '@/lib/neighborhood-map';
 
 type StoredSighting = {
@@ -137,12 +138,15 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
         ? 'text-accent-foreground'
         : 'text-muted-foreground';
 
-  function submitSighting(event: FormEvent) {
+  async function submitSighting(event: FormEvent) {
     event.preventDefault();
     if (!pin) {
       notify({ tone: 'error', text: 'Tap the map to mark where you saw them first.' });
       return;
     }
+    // A sighting note is read by someone already having a bad day.
+    const verdict = await review(note);
+    if (verdict.level === 'block') { notify({ tone: 'error', text: verdict.reason }); return; }
     const where = nearestLandmark(pin);
     setExtra([
       {
@@ -393,7 +397,7 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
                 </ul>
               )}
 
-              <form onSubmit={submitSighting} className="mt-6 pt-5 border-t border-border space-y-3" data-testid="form-sighting">
+              <form onSubmit={(e) => void submitSighting(e)} className="mt-6 pt-5 border-t border-border space-y-3" data-testid="form-sighting">
                 <p className="eyebrow">Report a sighting</p>
                 <div className={`rounded-[.9rem] border p-3.5 text-sm ${pin ? 'border-primary bg-primary/5' : 'border-dashed border-input'}`}>
                   {pin ? (

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { CountUp, EmptyState, PageHeader, useTicker, type Notify } from '@/components/page-bits';
 import { PetPhoto } from '@/components/pet-photo';
+import { review } from '@/lib/moderation';
 import {
   COAT_PRESETS,
   DEFAULT_PORTRAIT,
@@ -112,11 +113,16 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
     notify({ tone: 'info', text: `${item.petName}'s alert is back on the board.` });
   }
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     if (!form.petName.trim() || !form.description.trim()) {
       notify({ tone: 'error', text: 'A name and a description are the two things neighbours really need.' });
       return;
+    }
+    // An alert goes to the whole neighbourhood at once.
+    for (const value of [form.petName, form.description, form.markings, form.contact]) {
+      const verdict = await review(value);
+      if (verdict.level === 'block') { notify({ tone: 'error', text: verdict.reason }); return; }
     }
     const lastSeen = LANDMARKS.find((l) => l.id === form.lastSeenId) ?? LANDMARKS[0];
     const home = LANDMARKS.find((l) => l.id === form.homeId) ?? LANDMARKS[7];
@@ -186,7 +192,7 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
         </div>
 
         {reportOpen && (
-          <form onSubmit={submit} className="paper-card p-5 md:p-6 mb-6 reveal" data-testid="form-lost-pet">
+          <form onSubmit={(e) => void submit(e)} className="paper-card p-5 md:p-6 mb-6 reveal" data-testid="form-lost-pet">
             <div className="flex justify-between items-start">
               <div>
                 <p className="eyebrow text-destructive">New alert</p>

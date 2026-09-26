@@ -112,6 +112,143 @@ function check(name: string, ok: boolean, detail = '') {
   check('is deterministic', normalise('Some Text!!') === normalise('Some Text!!'));
 }
 
+// ---------------------------------------------------------------------------
+// Disguise, context, and the things a wordlist cannot reach.
+// ---------------------------------------------------------------------------
+
+function blocks(text: string, why = ''): void {
+  const v = inspect(text);
+  check(`blocks: ${JSON.stringify(text)}${why ? ` (${why})` : ''}`, v.level === 'block', v.level);
+}
+function allows(text: string, why = ''): void {
+  const v = inspect(text);
+  check(`allows: ${JSON.stringify(text)}${why ? ` (${why})` : ''}`, v.level !== 'block', `${v.level} ${v.matched ?? ''}`);
+}
+
+// --- disguised profanity --------------------------------------------------
+{
+  blocks('f u c k you', 'spaced out');
+  blocks('f.u.c.k off', 'dotted');
+  blocks('f-u-c-k this', 'hyphenated');
+  blocks('fuuuuuck you', 'padded');
+  blocks('b!tch', 'punctuation for a letter');
+  blocks('sh1t', 'leetspeak');
+  blocks('@sshole', 'symbol for a letter');
+  blocks('phuck you', 'phonetic');
+  blocks('sh!t head', 'mixed');
+  blocks('FUCK YOU', 'shouting');
+  blocks('Ｆｕｃｋ ｏｆｆ', 'full-width characters');
+  blocks('fuсk you', 'cyrillic lookalike');
+  blocks('b1tch', 'digit for a letter');
+  blocks('cnut', 'transposed');
+}
+
+// --- other languages ------------------------------------------------------
+{
+  blocks('vete a la mierda', 'spanish');
+  blocks('eres un pendejo', 'spanish');
+  blocks('ta gueule', 'french');
+  blocks('du arschloch', 'german');
+  blocks('vaffanculo', 'italian');
+  blocks('ty suka', 'russian transliterated');
+  blocks('putangina mo', 'tagalog');
+  blocks('madarchod', 'hindi transliterated');
+}
+
+// --- slurs are unconditional ----------------------------------------------
+{
+  const v = inspect('you are a retard');
+  check('a slur is categorised as a slur', v.category === 'slur', v.category ?? 'none');
+  check('and the reason says so', /slur/i.test(v.reason));
+  blocks('the word retard is offensive', 'a mention frame does not excuse a slur');
+  blocks('he called me a f4ggot', 'reporting one still does not send it');
+}
+
+// --- harassment built from ordinary words ---------------------------------
+{
+  blocks('you are worthless');
+  blocks('nobody likes you');
+  blocks('you should not exist');
+  blocks('you people always cause trouble', 'targets a group');
+  blocks('go back to your own country');
+  blocks('shut up you');
+  const v = inspect('nobody likes you');
+  check('harassment is categorised', v.category === 'harassment', v.category ?? 'none');
+}
+
+// --- threats and violence -------------------------------------------------
+{
+  blocks('i will kill you');
+  blocks('i know where you live');
+  blocks('i am going to hurt your dog');
+  blocks('slit his throat');
+  blocks('i will drown that cat');
+  blocks('beat him to death');
+}
+
+// --- self-harm ------------------------------------------------------------
+{
+  blocks('kys');
+  blocks('go and die');
+  blocks('the world would be better without you');
+  blocks('nobody would miss you');
+  const v = inspect('kill yourself');
+  check('self-harm is categorised', v.category === 'self-harm', v.category ?? 'none');
+}
+
+// --- sexual ---------------------------------------------------------------
+{
+  blocks('send me nudes');
+  blocks('what are you wearing');
+  blocks('show me your body');
+  blocks('i want to see you naked');
+  const v = inspect('send nudes please');
+  check('sexual content is categorised', v.category === 'sexual', v.category ?? 'none');
+}
+
+// --- talking about a word is not using it ---------------------------------
+// The point of this section: a filter that blocks these teaches people it is
+// stupid, and they start working around it for ordinary sentences too.
+{
+  allows('my son asked me what the word f*** means', 'asterisked and framed');
+  allows('he shouted "fuck off" at my dog and I was shocked', 'quoted report');
+  allows('is bollocks a swear word in Canada?', 'asking about a word');
+  allows('please say it without swearing', 'talking about swearing');
+  allows('that is not okay to say to anyone', 'meta');
+}
+
+// --- ordinary talk that must never be blocked -----------------------------
+{
+  allows('Pip slipped his harness by the depot and bolted');
+  allows('She is nervous around bikes but fine with children');
+  allows('We passed the class at Scunthorpe on the way', 'the Scunthorpe problem');
+  allows('I need a behavioural assessment for my dog', 'assess');
+  allows('She loves shiitake mushrooms, oddly');
+  allows('The cockatiel next door screams every morning');
+  allows('My therapist says I should walk more', 'therapist');
+  allows('Massive thanks to whoever found the collar', 'mass');
+  allows('He is a bit of a grass when it comes to treats', 'grass');
+  allows('Analysis of the search grid says try the creek first', 'analysis');
+  allows('We took the bypass to the vet', 'bypass');
+  allows('Her glasses fogged up on the hill', 'glasses');
+  allows('He is a peacock about his new harness', 'peacock');
+}
+
+// --- nothing crashes ------------------------------------------------------
+{
+  for (const odd of ['', '   ', '\n\n', '😀😀😀', '🅱️', 'a'.repeat(5000), '...', '????']) {
+    const v = inspect(odd);
+    check(`survives ${JSON.stringify(odd.slice(0, 12))}`, ['clean', 'warn', 'block'].includes(v.level));
+  }
+}
+
+// --- the same text always gets the same answer ----------------------------
+{
+  const samples = ['hello neighbour', 'f u c k', 'you are worthless', 'send me nudes'];
+  check('inspect is deterministic',
+    samples.every((t) => JSON.stringify(inspect(t)) === JSON.stringify(inspect(t))));
+}
+
 console.log(out.join('\n'));
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

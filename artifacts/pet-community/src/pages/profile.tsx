@@ -23,6 +23,7 @@ import {
   MOOD_OPTIONS,
 } from '@/components/pet-portrait';
 import { PageHeader, type Notify } from '@/components/page-bits';
+import { review } from '@/lib/moderation';
 import { PetPhoto } from '@/components/pet-photo';
 import { PhotoPicker } from '@/components/photo-picker';
 import {
@@ -81,13 +82,21 @@ export function Profile({
     });
   }
 
-  function save(event: FormEvent) {
+  async function save(event: FormEvent) {
     event.preventDefault();
     const username = form.username.trim();
     const petName = form.petName.trim();
     if (!username || !petName) {
       notify({ tone: 'error', text: 'A name for you and a name for your pet — the rest is optional.' });
       return;
+    }
+    // A profile is seen by more people than any message ever is.
+    for (const [label, value] of [['name', username], ['pet name', petName], ['bio', form.bio]] as const) {
+      const verdict = await review(value);
+      if (verdict.level === 'block') {
+        notify({ tone: 'error', text: `Your ${label}: ${verdict.reason}` });
+        return;
+      }
     }
     setProfile({ ...form, username, petName, bio: form.bio.trim() });
     setSaved(true);
@@ -110,7 +119,7 @@ export function Profile({
 
       <section className="page-wrap pb-12">
         <div className="grid lg:grid-cols-[minmax(0,1fr)_330px] gap-5 items-start">
-          <form onSubmit={save} className="paper-card p-5 md:p-7" data-testid="form-profile">
+          <form onSubmit={(e) => void save(e)} className="paper-card p-5 md:p-7" data-testid="form-profile">
             {/* Portrait builder */}
             <fieldset>
               <legend className="eyebrow mb-3">Profile picture</legend>

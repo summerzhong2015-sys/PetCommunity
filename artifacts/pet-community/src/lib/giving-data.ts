@@ -30,6 +30,12 @@ export type Campaign = {
   portrait?: PortraitSpec;
   /** A photograph of the animal a campaign is for, where there is one. */
   photo?: string;
+  /**
+   * Where anything past the goal goes. Named, not vague: a campaign that has
+   * been met keeps taking money, so it owes people a straight answer about
+   * what happens to it.
+   */
+  overflow: string;
   /** Shown when a local business is matching contributions. */
   matchNote?: string;
 };
@@ -45,6 +51,7 @@ export const CAMPAIGN_LABEL: Record<CampaignKind, string> = {
 export const CAMPAIGNS: Campaign[] = [
   {
     id: 'c1',
+    overflow: 'the same fund — it reopens for the next animal brought in with nobody to bill',
     title: 'The stray fund at East Ridge',
     beneficiary: 'East Ridge Animal Hospital',
     kind: 'hospital',
@@ -70,6 +77,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c2',
+    overflow: 'Bess’s follow-up scans, and then East Ridge’s fund for other neighbours in the same position',
     photo: '1668970565681-9373b86a1d4e',
     title: 'Keep Bess with Mr Halloran',
     beneficiary: 'Dennis Halloran, Alder Street',
@@ -101,6 +109,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c3',
+    overflow: 'Nutmeg’s aftercare and physiotherapy, then the next shelter animal waiting on surgery',
     photo: '1637424864218-b040b739ac44',
     title: 'Nutmeg needs a hip',
     beneficiary: 'Maple Ridge Animal Shelter',
@@ -131,6 +140,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c4',
+    overflow: 'the shelter’s day-to-day care fund — bedding, food and heat through the winter',
     title: 'Heat the kennels before November',
     beneficiary: 'Maple Ridge Animal Shelter',
     kind: 'shelter',
@@ -155,6 +165,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c5',
+    overflow: 'the rescue’s foster fund, which pays for litter, food and vet visits in foster homes',
     title: 'Neuter the garden colony',
     beneficiary: 'Willow Gate Cat Rescue',
     kind: 'shelter',
@@ -177,6 +188,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c6',
+    overflow: 'the next stage of the study, which is not yet funded',
     title: 'Early detection for feline kidney disease',
     beneficiary: 'Riverside Veterinary Research Group',
     kind: 'research',

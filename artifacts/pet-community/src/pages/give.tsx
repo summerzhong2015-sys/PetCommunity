@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { PetPhoto } from '@/components/pet-photo';
 import { CountUp, PageHeader, ProgressBar, Stat, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
+import { describeNext, fundingOf, nextItem, suggestedAmounts } from '@/lib/funding';
 import {
   CAMPAIGNS,
   CAMPAIGN_LABEL,
@@ -161,7 +162,8 @@ export function Give({ notify }: { notify: Notify }) {
             const Icon = KIND_ICON[campaign.kind];
             const raised = raisedFor(campaign);
             const yours = yourShareOf(campaign.id);
-            const pct = Math.min(100, (raised / campaign.goal) * 100);
+            const funding = fundingOf(campaign.goal, raised);
+            const pct = funding.percent;
             return (
               <article
                 key={campaign.id}
@@ -224,8 +226,21 @@ export function Give({ notify }: { notify: Notify }) {
                   </div>
                 </div>
 
+                <p className="text-xs mt-2.5" data-testid={`shortfall-${campaign.id}`}>
+                  {funding.state === 'funded' ? (
+                    <span className="text-primary font-bold">
+                      Funded{funding.surplus > 0 ? ` — ${money(funding.surplus)} past the goal` : ''}.
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      <strong className="text-foreground">{money(funding.remaining)}</strong> still needed
+                      {funding.state === 'nearly' ? ' — nearly there' : ''}
+                    </span>
+                  )}
+                </p>
+
                 {yours > 0 && (
-                  <p className="text-xs mt-2.5 text-primary" data-testid={`your-share-${campaign.id}`}>
+                  <p className="text-xs mt-1.5 text-primary" data-testid={`your-share-${campaign.id}`}>
                     {money(yours)} of that is from you.
                   </p>
                 )}
@@ -238,10 +253,18 @@ export function Give({ notify }: { notify: Notify }) {
 
                 <button
                   onClick={() => setOpenId(campaign.id)}
-                  className="action-button button-primary mt-5 w-full"
+                  className={`action-button mt-5 w-full ${funding.state === 'funded' ? 'button-quiet' : 'button-primary'}`}
                   data-testid={`button-open-campaign-${campaign.id}`}
                 >
-                  <Heart size={16} /> Give to this
+                  {funding.state === 'funded' ? (
+                    <>
+                      <BadgeCheck size={16} /> Fully funded
+                    </>
+                  ) : (
+                    <>
+                      <Heart size={16} /> Give to this
+                    </>
+                  )}
                 </button>
               </article>
             );
@@ -297,8 +320,15 @@ function CampaignDetail({
   const [receipt, setReceipt] = useState<{ amount: number; recurring: boolean } | null>(null);
 
   const chosen = custom.trim() ? Math.max(1, Math.round(Number(custom) || 0)) : amount;
-  const pct = Math.min(100, (raised / campaign.goal) * 100);
-  const remaining = Math.max(0, campaign.goal - raised);
+  const funding = fundingOf(campaign.goal, raised);
+  const pct = funding.percent;
+  const remaining = funding.remaining;
+  const funded = funding.state === 'funded';
+  // What the money in front of you actually pays for, read straight off the
+  // campaign's own breakdown rather than estimated.
+  const upNext = nextItem(campaign.breakdown, raised);
+  const covers = describeNext(upNext, chosen);
+  const offered = suggestedAmounts([...PRESET_AMOUNTS], remaining);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -373,6 +403,10 @@ function CampaignDetail({
                 <>
                   <CountUp value={remaining} format={money} /> still needed
                 </>
+              ) : funding.surplus > 0 ? (
+                <>
+                  Fully funded, with <CountUp value={funding.surplus} format={money} /> past the goal
+                </>
               ) : (
                 'Fully funded — thank you'
               )}{' '}
@@ -408,9 +442,34 @@ function CampaignDetail({
               </div>
             ) : (
               <form onSubmit={submit} className="mt-5 pt-5 border-t border-border" data-testid={`form-give-${campaign.id}`}>
-                <p className="eyebrow">Choose an amount</p>
+                {funded ? (
+                  <div className="rounded-[.9rem] bg-secondary/70 p-4 mb-4" data-testid={`panel-funded-${campaign.id}`}>
+                    <p className="font-bold text-sm flex items-center gap-2">
+                      <BadgeCheck size={16} className="text-primary shrink-0" /> This one is fully funded
+                    </p>
+                    <p className="text-sm mt-2 leading-relaxed">
+                      Nothing more is needed for {campaign.beneficiary}. You can still give, and if you do it goes to{' '}
+                      {campaign.overflow}.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2.5">
+                      Said plainly because a met goal that keeps a donate button is usually the point at which people
+                      stop being told where their money went.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm mb-4">
+                    <strong>{money(remaining)}</strong> still needed.
+                    {upNext && (
+                      <span className="text-muted-foreground">
+                        {' '}
+                        The next {money(Math.min(upNext.outstanding, remaining))} covers {upNext.label.toLowerCase()}.
+                      </span>
+                    )}
+                  </p>
+                )}
+                <p className="eyebrow">{funded ? 'Add to what comes next' : 'Choose an amount'}</p>
                 <div className="grid grid-cols-4 gap-2 mt-2.5">
-                  {PRESET_AMOUNTS.map((value) => (
+                  {offered.map((value) => (
                     <button
                       key={value}
                       type="button"
@@ -422,7 +481,7 @@ function CampaignDetail({
                       className={`action-button text-sm px-2 ${!custom && amount === value ? 'button-primary' : 'button-quiet'}`}
                       data-testid={`button-amount-${value}`}
                     >
-                      ${value}
+                      {money(value)}
                     </button>
                   ))}
                 </div>
@@ -446,8 +505,14 @@ function CampaignDetail({
                   />
                   Make it monthly — small and steady is what they can plan around
                 </label>
+                {covers && !funded && (
+                  <p className="text-xs text-primary mt-3" data-testid={`covers-${campaign.id}`}>
+                    {covers}
+                  </p>
+                )}
                 <button type="submit" className="action-button button-primary w-full mt-4" data-testid={`button-confirm-${campaign.id}`}>
-                  <Heart size={16} /> Give {money(chosen)}{recurring ? ' a month' : ''}
+                  <Heart size={16} /> {funded ? 'Give' : chosen >= remaining && remaining > 0 ? 'Finish this —' : 'Give'}{' '}
+                  {money(chosen)}{recurring ? ' a month' : ''}
                 </button>
                 <p className="text-xs text-muted-foreground mt-3">
                   Demonstration only — no card is requested and no payment is taken.

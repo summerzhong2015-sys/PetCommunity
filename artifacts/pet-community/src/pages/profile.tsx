@@ -96,7 +96,7 @@ export function Profile({
   return (
     <main>
       <PageHeader
-        eyebrow="Your place in the circle"
+        eyebrow="Your corner of it"
         title={
           <>
             A profile made for

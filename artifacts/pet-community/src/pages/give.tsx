@@ -95,7 +95,7 @@ export function Give({ notify }: { notify: Notify }) {
   return (
     <main>
       <PageHeader
-        eyebrow="Shelters · hospital · neighbours · research"
+        eyebrow="Where the money actually goes"
         title={
           <>
             Small amounts, close by,

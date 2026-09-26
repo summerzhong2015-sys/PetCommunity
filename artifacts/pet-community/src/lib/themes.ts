@@ -31,6 +31,17 @@ export type Theme = {
   secondary: string;
   /** A faint wash over the page behind the cards. */
   tint: string;
+  /**
+   * The paper a card is printed on. Tinted towards the section rather than the
+   * same cream everywhere — an opened panel is most of what you look at, and
+   * nine sections that all open onto the same beige is the app going grey the
+   * moment you engage with it.
+   */
+  card: string;
+  /** The card's edge, a touch more saturated than the paper. */
+  cardBorder: string;
+  /** Quiet inner surfaces: nested panels, quoted notes, meter tracks. */
+  muted: string;
   /** The ring on focus, kept in step with primary. */
   ring: string;
   /**
@@ -46,6 +57,9 @@ const BASE: Omit<Theme, 'path' | 'name'> = {
   accent: '37 89% 67%',
   secondary: '36 40% 91%',
   tint: '42 32% 96%',
+  card: '42 44% 99%',
+  cardBorder: '36 25% 87%',
+  muted: '39 28% 91%',
   ring: '158 35% 29%',
   wash: '24',
 };
@@ -64,6 +78,9 @@ export const THEMES: Theme[] = [
     tint: '200 40% 96%',
     ring: '205 44% 31%',
     wash: '168',
+    card: '200 52% 98%',
+    cardBorder: '200 30% 89%',
+    muted: '200 36% 94%',
   },
   {
     path: '/walks',
@@ -75,6 +92,9 @@ export const THEMES: Theme[] = [
     tint: '84 32% 96%',
     ring: '112 30% 26%',
     wash: '52',
+    card: '88 46% 98%',
+    cardBorder: '92 26% 87%',
+    muted: '88 30% 93%',
   },
   {
     path: '/lost-pets',
@@ -86,6 +106,9 @@ export const THEMES: Theme[] = [
     tint: '30 52% 96%',
     ring: '19 52% 34%',
     wash: '44',
+    card: '30 62% 98%',
+    cardBorder: '28 34% 88%',
+    muted: '30 44% 94%',
   },
   {
     path: '/adopt',
@@ -99,6 +122,9 @@ export const THEMES: Theme[] = [
     tint: '350 46% 97%',
     ring: '350 44% 37%',
     wash: '28',
+    card: '350 56% 98%',
+    cardBorder: '350 30% 90%',
+    muted: '350 40% 95%',
   },
   {
     path: '/shelters',
@@ -110,6 +136,9 @@ export const THEMES: Theme[] = [
     tint: '40 55% 95%',
     ring: '40 48% 26%',
     wash: '150',
+    card: '40 62% 97%',
+    cardBorder: '38 32% 87%',
+    muted: '40 44% 93%',
   },
   {
     path: '/give',
@@ -121,6 +150,9 @@ export const THEMES: Theme[] = [
     tint: '300 30% 97%',
     ring: '300 26% 33%',
     wash: '250',
+    card: '300 40% 98%',
+    cardBorder: '300 22% 90%',
+    muted: '300 28% 95%',
   },
   {
     path: '/messages',
@@ -132,6 +164,9 @@ export const THEMES: Theme[] = [
     tint: '220 32% 97%',
     ring: '222 32% 33%',
     wash: '188',
+    card: '220 44% 98%',
+    cardBorder: '220 24% 90%',
+    muted: '220 30% 95%',
   },
   {
     path: '/profile',
@@ -143,6 +178,9 @@ export const THEMES: Theme[] = [
     tint: '268 34% 97%',
     ring: '262 26% 36%',
     wash: '212',
+    card: '266 44% 98%',
+    cardBorder: '266 24% 91%',
+    muted: '266 30% 96%',
   },
   { path: '/', name: 'Neighborhood', ...BASE },
 ];
@@ -187,5 +225,11 @@ export function themeVariables(theme: Theme): Record<string, string> {
     '--chart-2': theme.accent,
     '--sidebar-primary': theme.accent,
     '--sidebar-ring': theme.accent,
+    '--card': theme.card,
+    '--popover': theme.card,
+    '--card-border': theme.cardBorder,
+    '--popover-border': theme.cardBorder,
+    '--border': theme.cardBorder,
+    '--muted': theme.muted,
   };
 }

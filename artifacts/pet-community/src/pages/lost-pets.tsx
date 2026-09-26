@@ -155,7 +155,7 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
   return (
     <main>
       <PageHeader
-        eyebrow="Fast, local, private"
+        eyebrow="When a gate gets left open"
         title={
           <>
             Bring them

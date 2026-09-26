@@ -70,14 +70,22 @@ function PetAvatar({ type, className = '' }: { type: PetType; className?: string
 }
 
 /** `mobile` marks the five that fit in the bottom bar on a phone. */
+/**
+ * What each section is called.
+ *
+ * Named the way a neighbour would say it, not the way a product spec would.
+ * "Give" is a category; "Chip in" is what someone actually does. "Nearby" is a
+ * radius; "Your neighbours" is who is in it. `short` is the version that fits
+ * the bottom bar on a phone.
+ */
 const navItems = [
-  { href: '/', label: 'Neighborhood', icon: House, mobile: true },
-  { href: '/nearby', label: 'Nearby', icon: UsersRound, mobile: false },
-  { href: '/walks', label: 'Walks', icon: Footprints, mobile: false },
-  { href: '/lost-pets', label: 'Lost pets', icon: BellRing, mobile: true },
-  { href: '/adopt', label: 'Adopt', icon: PawPrint, mobile: true },
-  { href: '/give', label: 'Give', icon: HeartHandshake, mobile: true },
-  { href: '/messages', label: 'Messages', icon: MessageCircle, mobile: true },
+  { href: '/', label: 'Around here', short: 'Home', icon: House, mobile: true },
+  { href: '/nearby', label: 'Your neighbours', short: 'Neighbours', icon: UsersRound, mobile: false },
+  { href: '/walks', label: 'Good walks', short: 'Walks', icon: Footprints, mobile: false },
+  { href: '/lost-pets', label: 'Lost & found', short: 'Lost', icon: BellRing, mobile: true },
+  { href: '/adopt', label: 'Looking for homes', short: 'Adopt', icon: PawPrint, mobile: true },
+  { href: '/give', label: 'Chip in', short: 'Chip in', icon: HeartHandshake, mobile: true },
+  { href: '/messages', label: 'Messages', short: 'Messages', icon: MessageCircle, mobile: true },
 ];
 
 function Shell({ children, notice, setNotice, profile }: { children: ReactNode; notice: Notice | null; setNotice: (n: Notice | null) => void; profile: PetProfile }) {
@@ -129,9 +137,9 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
           <span className="grid place-items-center w-9 h-9 rounded-xl bg-sidebar-primary/15 text-sidebar-primary"><Dog size={18} /></span>
           <span><strong className="block text-sm">Set up your pet profile</strong><span className="block text-[11px] text-sidebar-foreground/60 mt-0.5">{authEnabled ? 'Sign in to get started' : 'Saved in this browser'}</span></span>
         </Link>}
-        <p className="eyebrow text-sidebar-foreground/50 px-3 mb-3">Find your people</p>
+        <p className="eyebrow text-sidebar-foreground/50 px-3 mb-3">Where to go</p>
         <nav aria-label="Main navigation" className="space-y-1">
-          {navItems.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`nav-link ${active(href) ? 'active' : ''}`} data-testid={`link-nav-${label.toLowerCase().replace(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{label}</span>{label === 'Lost pets' && <span className="ml-auto w-2 h-2 rounded-full bg-sidebar-primary" />}</Link>)}
+          {navItems.map(({ href, label, short, icon: Icon }) => <Link key={href} href={href} className={`nav-link ${active(href) ? 'active' : ''}`} data-testid={`link-nav-${short.toLowerCase().replace(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{label}</span>{href === '/lost-pets' && <span className="ml-auto w-2 h-2 rounded-full bg-sidebar-primary" />}</Link>)}
         </nav>
         <div className="mt-auto">
           <div className="rounded-2xl bg-sidebar-accent p-4">
@@ -171,7 +179,7 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
         <div className="relative z-10">{children}</div>
       </div>
       <nav className="fixed z-30 bottom-0 inset-x-0 md:hidden bg-card/95 backdrop-blur border-t border-border grid grid-cols-5 px-1 py-2" aria-label="Mobile navigation">
-        {navItems.filter(item => item.mobile).map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`mobile-nav-link ${active(href) ? 'active' : ''}`} data-testid={`link-mobile-${label.toLowerCase().replace(' ', '-')}`}><Icon size={19} strokeWidth={active(href) ? 2.5 : 1.8} /><span>{label === 'Neighborhood' ? 'Home' : label}</span></Link>)}
+        {navItems.filter(item => item.mobile).map(({ href, short, icon: Icon }) => <Link key={href} href={href} className={`mobile-nav-link ${active(href) ? 'active' : ''}`} data-testid={`link-mobile-${short.toLowerCase().replace(' ', '-')}`}><Icon size={19} strokeWidth={active(href) ? 2.5 : 1.8} /><span>{short}</span></Link>)}
       </nav>
       {notice && <div role="status" className={`toast-pop fixed z-50 bottom-24 md:bottom-7 right-4 max-w-[min(90vw,390px)] flex items-start gap-3 rounded-xl px-4 py-3 shadow-lg ${notice.tone === 'error' ? 'bg-destructive text-destructive-foreground' : notice.tone === 'success' ? 'bg-primary text-primary-foreground' : 'bg-card text-card-foreground border border-border'}`} data-testid="status-notice"><CheckCircle2 size={18} className="mt-0.5 shrink-0" /><span className="text-sm font-semibold">{notice.text}</span><button onClick={() => setNotice(null)} aria-label="Dismiss message" data-testid="button-dismiss-notice"><X size={16} /></button></div>}
     </div>

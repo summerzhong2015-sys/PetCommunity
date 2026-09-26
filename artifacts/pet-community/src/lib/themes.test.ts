@@ -53,7 +53,8 @@ const FOREGROUND = '157 25% 19%';
 const PRIMARY_FOREGROUND = '42 36% 97%';
 const ACCENT_FOREGROUND = '157 28% 16%';
 const SECONDARY_FOREGROUND = '157 25% 19%';
-const CARD = '42 38% 99%';
+const MUTED_FOREGROUND = '157 14% 39%';
+
 
 // --- sanity on the maths itself -------------------------------------------
 {
@@ -90,14 +91,57 @@ for (const theme of THEMES) {
   check(`${label}: page text is readable on the tint`, onTint >= 7, onTint.toFixed(2));
 
   // Primary is also used as a text colour on cards, for links and figures.
-  const primaryAsText = contrast(theme.primary, CARD);
+  const primaryAsText = contrast(theme.primary, theme.card);
   check(`${label}: primary works as link text on a card`, primaryAsText >= 4.5, primaryAsText.toFixed(2));
 
   // The tint must stay a wash, not a colour: cards have to sit on top of it.
-  const tintAgainstCard = contrast(theme.tint, CARD);
+  const tintAgainstCard = contrast(theme.tint, theme.card);
   check(`${label}: cards still read as raised off the page`, tintAgainstCard < 1.35, tintAgainstCard.toFixed(3));
 
   check(`${label}: the ring follows the primary`, theme.ring === theme.primary);
+}
+
+// --- card surfaces --------------------------------------------------------
+for (const theme of THEMES) {
+  const label = theme.name;
+
+  // Body text and headings sit straight on the card. This is the single most
+  // read surface in the app, so it gets the strictest bar.
+  const bodyOnCard = contrast(theme.card, FOREGROUND);
+  check(`${label}: body text is easy on the card`, bodyOnCard >= 10, bodyOnCard.toFixed(2));
+
+  const mutedOnCard = contrast(theme.card, MUTED_FOREGROUND);
+  check(`${label}: secondary text still clears AA on the card`, mutedOnCard >= 4.5, mutedOnCard.toFixed(2));
+
+  // The card must read as paper, not as a coloured panel.
+  check(`${label}: the card is still nearly white`,
+    Number.parseInt(theme.card.split(' ')[2], 10) >= 96, theme.card);
+
+  // But not so pale it is the same cream in every section.
+  check(`${label}: the card actually carries the section`,
+    theme.name === 'Neighborhood' || Number.parseInt(theme.card.split(' ')[1], 10) >= 30, theme.card);
+
+  // A card has to be visible against the page behind it.
+  const cardOffPage = contrast(theme.card, theme.tint);
+  check(`${label}: the card lifts off the page`, cardOffPage > 1.01 && cardOffPage < 1.3, cardOffPage.toFixed(3));
+
+  // The border has to be findable without being a line drawing.
+  const borderOnCard = contrast(theme.cardBorder, theme.card);
+  check(`${label}: the card edge is visible but quiet`,
+    borderOnCard > 1.15 && borderOnCard < 2.2, borderOnCard.toFixed(2));
+
+  // Nested quiet surfaces still carry text.
+  const onMuted = contrast(theme.muted, FOREGROUND);
+  check(`${label}: text is readable on a nested panel`, onMuted >= 7, onMuted.toFixed(2));
+
+  check(`${label}: card, border and muted are all valid triples`,
+    [theme.card, theme.cardBorder, theme.muted].every((v) => /^\d{1,3} \d{1,3}% \d{1,3}%$/.test(v)));
+}
+
+{
+  const cards = THEMES.map((t) => t.card);
+  check('no two sections print on the same paper', new Set(cards).size === cards.length,
+    cards.filter((c, i) => cards.indexOf(c) !== i).join(' | '));
 }
 
 // --- the background wash ---------------------------------------------------
@@ -176,7 +220,12 @@ for (const theme of THEMES) {
   check('the focus ring follows', vars['--ring'] === THEMES[0].ring);
   check('the sidebar highlight follows the accent', vars['--sidebar-primary'] === THEMES[0].accent);
   check('nothing overrides the page text colour', !('--foreground' in vars));
-  check('nothing overrides the paper', !('--background' in vars) && !('--card' in vars));
+  check('nothing overrides the card text colour', !('--card-foreground' in vars));
+  check('nothing overrides the page base colour', !('--background' in vars));
+  // The paper itself is themed on purpose; the ink on it is not.
+  check('the card paper is themed', vars['--card'] === THEMES[0].card);
+  check('popovers use the same paper as cards', vars['--popover'] === vars['--card']);
+  check('borders follow the card edge', vars['--border'] === THEMES[0].cardBorder);
 }
 
 console.log(out.join('\n'));

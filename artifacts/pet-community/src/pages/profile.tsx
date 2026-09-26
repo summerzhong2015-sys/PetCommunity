@@ -281,7 +281,7 @@ export function Profile({
                   />
                 </label>
                 <label className="block text-xs font-bold">
-                  Where you walk
+                  Roughly where you walk <span className="font-normal text-muted-foreground">(optional)</span>
                   <select
                     className="field mt-1"
                     value={form.neighbourhood}
@@ -295,6 +295,26 @@ export function Profile({
                     ))}
                   </select>
                 </label>
+
+              <div className="sm:col-span-2 rounded-[.9rem] border border-border p-4 mt-1">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.shareArea}
+                    onChange={(e) => update({ shareArea: e.target.checked })}
+                    className="w-4 h-4 mt-0.5 accent-[hsl(var(--primary))]"
+                    data-testid="input-profile-share-area"
+                  />
+                  <span>
+                    <span className="block text-sm font-bold">Let neighbours see you nearby</span>
+                    <span className="block text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Adds you to the Nearby list for people whose landmark is within 2 km of yours. Only the
+                      landmark is used &mdash; never an address, never your device&rsquo;s location &mdash; and the
+                      distance shown is rounded to the nearest hundred metres. Leave this off and nobody sees you.
+                    </span>
+                  </span>
+                </label>
+              </div>
               </div>
             </fieldset>
 

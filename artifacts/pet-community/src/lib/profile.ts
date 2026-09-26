@@ -22,6 +22,11 @@ export type PetProfile = {
   age: string;
   /** Where they walk, drawn from the same landmarks the search map uses. */
   neighbourhood: string;
+  /**
+   * Whether to appear in the neighbours list. Off until you say otherwise:
+   * even a landmark is more than some people want to share.
+   */
+  shareArea: boolean;
   /** What neighbours should know — the bit that makes a hello easy. */
   bio: string;
   portrait: PortraitSpec;
@@ -36,6 +41,7 @@ export const defaultProfile: PetProfile = {
   breed: '',
   age: '',
   neighbourhood: NEIGHBOURHOODS[0],
+  shareArea: false,
   bio: '',
   portrait: DEFAULT_PORTRAIT,
 };
@@ -53,6 +59,9 @@ export function normalizeProfile(value: Partial<PetProfile> | null | undefined):
     breed: value?.breed ?? '',
     age: value?.age ?? '',
     neighbourhood: value?.neighbourhood || defaultProfile.neighbourhood,
+    // Opting in has to be explicit: an older stored profile, or a corrupted
+    // one, must never read as consent to be listed.
+    shareArea: value?.shareArea === true,
     bio: value?.bio ?? '',
     portrait:
       portrait && portrait.coat && portrait.marking && portrait.ears && portrait.mood

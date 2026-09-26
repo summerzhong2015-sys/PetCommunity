@@ -15,9 +15,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PetPortrait, type PortraitSpec } from '@/components/pet-portrait';
 
-/** Unsplash serves a resized, modern-format image from these parameters. */
-function source(photo: string, width: number): string {
-  return `https://images.unsplash.com/photo-${photo}?w=${width}&h=${width}&fit=crop&crop=faces,entropy&q=72&auto=format`;
+/**
+ * Unsplash serves a resized, modern-format image from these parameters.
+ *
+ * `height` defaults to a square because most of these are animal portraits; a
+ * route banner passes its own, otherwise a landscape photo gets cropped to a
+ * square and then stretched back out by the layout.
+ */
+function source(photo: string, width: number, height = width): string {
+  return `https://images.unsplash.com/photo-${photo}?w=${width}&h=${height}&fit=crop&crop=faces,entropy&q=72&auto=format`;
 }
 
 export function PetPhoto({
@@ -27,6 +33,7 @@ export function PetPhoto({
   alt,
   className = '',
   width = 600,
+  height,
   rounded,
 }: {
   photo?: string;
@@ -37,6 +44,8 @@ export function PetPhoto({
   alt: string;
   className?: string;
   width?: number;
+  /** Pixel height to request. Defaults to a square crop. */
+  height?: number;
   rounded?: number;
 }) {
   const [loaded, setLoaded] = useState(false);
@@ -64,7 +73,7 @@ export function PetPhoto({
       {showPhoto && (
         <img
           ref={img}
-          src={source(photo!, width)}
+          src={source(photo!, width, height)}
           alt={alt}
           loading="lazy"
           decoding="async"

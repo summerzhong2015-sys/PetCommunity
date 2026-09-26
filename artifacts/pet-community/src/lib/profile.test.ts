@@ -61,7 +61,7 @@ function complete(p: ReturnType<typeof normalizeProfile>): boolean {
 {
   const full = {
     username: 'Rowan', petName: 'Pip', petType: 'dog' as const,
-    breed: 'Terrier', age: '4 years', neighbourhood: NEIGHBOURHOODS[3], bio: 'Bolts at bikes.',
+    breed: 'Terrier', age: '4 years', neighbourhood: NEIGHBOURHOODS[3], shareArea: true, bio: 'Bolts at bikes.',
     portrait: { species: 'dog' as const, coat: { base: '#111', shade: '#222', accent: '#333', bg: '#444' },
                 marking: 'patch' as const, ears: 'folded' as const, mood: 'wary' as const },
   };
@@ -119,6 +119,22 @@ function complete(p: ReturnType<typeof normalizeProfile>): boolean {
     !isProfileSet({ ...defaultProfile, breed: 'Terrier mix' }));
   check('a fully set profile has certainly started',
     isProfileStarted({ ...defaultProfile, username: 'Summer', petName: 'Pip' }));
+}
+
+// Appearing in the neighbours list is opt-in, and every path that is not an
+// explicit yes has to read as no.
+{
+  check('a fresh profile is not listed', normalizeProfile(null).shareArea === false);
+  check('an older stored profile is not listed',
+    normalizeProfile({ username: 'Summer', petName: 'Candy', petType: 'dog' }).shareArea === false);
+  check('saying yes is kept', normalizeProfile({ shareArea: true }).shareArea === true);
+  check('saying no is kept', normalizeProfile({ shareArea: false }).shareArea === false);
+  check('a truthy non-boolean is not consent',
+    normalizeProfile({ shareArea: 'yes' as unknown as boolean }).shareArea === false);
+  check('a number is not consent',
+    normalizeProfile({ shareArea: 1 as unknown as boolean }).shareArea === false);
+  check('consent survives normalising twice',
+    normalizeProfile(normalizeProfile({ shareArea: true })).shareArea === true);
 }
 
 console.log(out.join('\n'));

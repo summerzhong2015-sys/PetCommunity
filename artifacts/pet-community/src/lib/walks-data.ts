@@ -31,8 +31,10 @@ import type { SceneKind } from '@/components/walk-scene';
 
 export type Walk = {
   id: string;
-  /** Which drawn scene heads the card. */
+  /** Which drawn scene heads the card — the fallback if the photo will not load. */
   scene: SceneKind;
+  /** A photograph of the route. */
+  photo?: string;
   name: string;
   neighborhood: string;
   distance: string;
@@ -70,6 +72,7 @@ export const defaultWalks: Walk[] = [
   {
     id: 'w1',
     scene: 'creek',
+    photo: '1663185777535-86bf6a489607',
     name: 'Creekside Loop',
     neighborhood: 'North Creek',
     distance: '2.8 km',
@@ -114,6 +117,7 @@ export const defaultWalks: Walk[] = [
   {
     id: 'w2',
     scene: 'park',
+    photo: '1686470590549-5180acd912ec',
     name: 'Maple Park Circuit',
     neighborhood: 'Maple Park',
     distance: '1.6 km',
@@ -157,6 +161,7 @@ export const defaultWalks: Walk[] = [
   {
     id: 'w3',
     scene: 'ridge',
+    photo: '1788432215849-98752641f650',
     name: 'Hilltop Lookout',
     neighborhood: 'East Ridge',
     distance: '4.2 km',

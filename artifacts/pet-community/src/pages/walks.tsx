@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { PageHeader, useStored, type Notify } from '@/components/page-bits';
 import { WalkScene } from '@/components/walk-scene';
+import { PetPhoto } from '@/components/pet-photo';
 import { BUSY_LABEL, busyBars, defaultWalks, type Walk } from '@/lib/walks-data';
 
 /** One fact in the opened panel. */
@@ -116,7 +117,14 @@ export function Walks({ notify }: { notify: Notify }) {
                 data-testid={`card-walk-${walk.id}`}
               >
                 <div className="h-36 relative">
-                  <WalkScene kind={walk.scene} className="absolute inset-0 w-full h-full" />
+                  <PetPhoto
+                    photo={walk.photo}
+                    alt={`${walk.name}, ${walk.surface.toLowerCase()}`}
+                    className="absolute inset-0 w-full h-full"
+                    width={720}
+                    height={300}
+                    fallback={<WalkScene kind={walk.scene} className="absolute inset-0 w-full h-full" />}
+                  />
                   <span className="absolute top-4 left-4 tag bg-card/85 backdrop-blur-sm">{walk.level}</span>
                   <button
                     onClick={() => toggleSaved(walk)}

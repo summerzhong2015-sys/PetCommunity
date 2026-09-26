@@ -55,7 +55,7 @@ export function Sky() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 top-0 h-[230px] md:h-[260px] overflow-hidden select-none"
+      className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[230px] md:h-[260px] overflow-hidden select-none"
       data-testid="scene-sky"
       data-phase={scene.phase}
     >

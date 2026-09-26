@@ -30,6 +30,7 @@ import { review, type Verdict } from '@/lib/moderation';
 import { PetPortrait, type PortraitSpec } from '@/components/pet-portrait';
 import { Sky } from '@/components/sky';
 import { PetPhoto } from '@/components/pet-photo';
+import { describeDistance, metresBetween, withinCircle } from '@/lib/neighbours';
 import { backgroundFor, themeFor, themeVariables } from '@/lib/themes';
 import {
   defaultProfile,
@@ -144,19 +145,21 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
         className="flex-1 min-w-0 pb-20 md:pb-0 relative theme-surface"
         style={{ backgroundColor: `hsl(${theme.tint})` }}
       >
-        {/* The wash. Keyed on the section so it fades in when you change tab,
-            rather than swapping in one frame — background-image cannot be
-            transitioned, so the fade has to be its own element. */}
+        {/* The wash and the sky are decoration and must stay behind the page.
+            A positioned element paints above a static one whatever the source
+            order, so both need an explicit z-index and the content needs one
+            above them. Without it they covered the page, and a card only
+            reappeared while hovered — because the hover transform lifted it
+            into its own stacking context. */}
         <div
           key={theme.name}
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 theme-wash"
+          className="pointer-events-none absolute inset-0 z-0 theme-wash"
           style={{ backgroundImage: backgroundFor(theme) }}
           data-testid="theme-wash"
         />
-        {/* Decoration, behind everything: later siblings paint over it. */}
         <Sky />
-        <header className="sticky top-0 z-20 md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-background/90 backdrop-blur">
+        <header className="sticky top-0 z-30 md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-background/90 backdrop-blur">
           <Link href="/" className="flex items-center gap-2" data-testid="link-mobile-brand"><span className="grid place-items-center w-8 h-8 rounded-xl bg-primary text-primary-foreground"><Dog size={17} /></span><strong className="serif text-lg">PetCommunity</strong></Link>
           {showProfileCard || !authEnabled ? <Link href="/profile" className="relative p-1 rounded-xl flex items-center gap-1.5" aria-label="See and edit your pet profile" title="See and edit your pet profile" data-testid="link-mobile-profile">
             <span className="relative">
@@ -167,7 +170,7 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
             </span>
           </Link> : <Link href="/sign-in" className="text-xs font-bold text-primary px-2 py-2" data-testid="link-mobile-sign-in">Sign in</Link>}
         </header>
-        {children}
+        <div className="relative z-10">{children}</div>
       </div>
       <nav className="fixed z-30 bottom-0 inset-x-0 md:hidden bg-card/95 backdrop-blur border-t border-border grid grid-cols-5 px-1 py-2" aria-label="Mobile navigation">
         {navItems.filter(item => item.mobile).map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`mobile-nav-link ${active(href) ? 'active' : ''}`} data-testid={`link-mobile-${label.toLowerCase().replace(' ', '-')}`}><Icon size={19} strokeWidth={active(href) ? 2.5 : 1.8} /><span>{label === 'Neighborhood' ? 'Home' : label}</span></Link>)}
@@ -249,16 +252,47 @@ function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetPr
   </main>;
 }
 
-function Nearby({ notify }: { notify: (n: Notice) => void }) {
+function Nearby({ notify, profile }: { notify: (n: Notice) => void; profile: PetProfile }) {
   const [, setLocation] = useLocation();
   const [selected, setSelected] = useState<string | null>(null);
   const panel = useRevealWhen<HTMLDivElement>(selected);
-  const people = [{ id: 'mara', photo: '1761590961183-c838b662956f', name: 'Mara Singh', initials: 'MS', pet: 'Clover', detail: 'Border collie · 4 years', distance: '0.3 km', note: 'Usually exploring the garden loop', color: 'bg-[#d8e3c8]' }, { id: 'theo', photo: '1644187689076-37b6126afada', name: 'Theo Alvarez', initials: 'TA', pet: 'Basil', detail: 'Retriever mix · 2 years', distance: '0.7 km', note: 'Out walking until 6:15 today', color: 'bg-[#f2d9a7]' }, { id: 'nora', photo: '1649493850736-d5a1e47820a5', name: 'Nora Williams', initials: 'NW', pet: 'Penny', detail: 'Corgi · 6 years', distance: '1.1 km', note: 'Knows every shady bench', color: 'bg-[#e7c7bd]' }, { id: 'camille', photo: '1598752616969-12ffea9bd3de', name: 'Camille Jones', initials: 'CJ', pet: 'Miso', detail: 'Orange tabby · 3 years', distance: '1.8 km', note: 'Quiet garden side enthusiast', color: 'bg-[#d4dfe3]' }];
-  const chosen = people.find(p => p.id === selected);
+  type Neighbour = {
+    id: string; name: string; initials: string; pet: string; detail: string;
+    note: string; color: string; area: string;
+    photo?: string; portrait?: PortraitSpec;
+  };
+  const people: Neighbour[] = [{ id: 'mara', area: 'the community garden', photo: '1761590961183-c838b662956f', name: 'Mara Singh', initials: 'MS', pet: 'Clover', detail: 'Border collie · 4 years', note: 'Usually exploring the garden loop', color: 'bg-[#d8e3c8]' }, { id: 'theo', area: 'the creek bend', photo: '1644187689076-37b6126afada', name: 'Theo Alvarez', initials: 'TA', pet: 'Basil', detail: 'Retriever mix · 2 years', note: 'Out walking until 6:15 today', color: 'bg-[#f2d9a7]' }, { id: 'nora', area: 'Maple Park south lawn', photo: '1649493850736-d5a1e47820a5', name: 'Nora Williams', initials: 'NW', pet: 'Penny', detail: 'Corgi · 6 years', note: 'Knows every shady bench', color: 'bg-[#e7c7bd]' }, { id: 'camille', area: 'Oak Terrace', photo: '1598752616969-12ffea9bd3de', name: 'Camille Jones', initials: 'CJ', pet: 'Miso', detail: 'Orange tabby · 3 years', note: 'Quiet garden side enthusiast', color: 'bg-[#d4dfe3]' }];
+  // Distances are computed from the landmark each person chose, not written
+  // down. You appear here only if you asked to, and only for people inside the
+  // circle the page promises.
+  const you = isProfileStarted(profile) && profile.shareArea
+    ? {
+        id: 'you',
+        name: `${profile.username} (you)`,
+        initials: profile.username.slice(0, 2).toUpperCase(),
+        pet: profile.petName,
+        detail: [profile.breed, profile.age].filter(Boolean).join(' · ') || profile.petType,
+        note: `Usually around ${profile.neighbourhood}`,
+        color: 'bg-secondary',
+        area: profile.neighbourhood,
+        photo: undefined as string | undefined,
+        portrait: profile.portrait,
+      }
+    : null;
+
+  const listed = [...(you ? [you] : []), ...people]
+    .map(person => {
+      const metres = you ? metresBetween(you.area, person.area) : metresBetween(profile.neighbourhood, person.area);
+      return { ...person, metres, distance: person.id === 'you' ? 'your patch' : metres === null ? '' : describeDistance(metres) };
+    })
+    .filter(person => person.id === 'you' || !you || withinCircle(person.metres))
+    .sort((a, b) => (a.metres ?? Infinity) - (b.metres ?? Infinity));
+
+  const chosen = listed.find(p => p.id === selected);
   const startMessage = (name: string, pet: string) => { localStorage.setItem('pc_draft', `Hi ${name.split(' ')[0]} — I’m a neighbor and would love to say hello to ${pet}.`); setLocation('/messages'); };
   return <main><PageHeader eyebrow="Your 2 km circle" title={<>Familiar faces,<br /><em className="text-primary not-italic">four paws at a time.</em></>} description="Discover the people and pets who make the routes around you feel like home. Approximate distance only." action={<button className="action-button button-quiet" onClick={() => notify({ tone: 'info', text: 'Maple Park is your current neighborhood circle.' })} data-testid="button-nearby-filter"><MapPin size={16} /> Maple Park <span className="text-muted-foreground">⌄</span></button>} />
-    <section className="page-wrap pb-10"><div className="flex items-center gap-2 mb-5"><span className="tag bg-primary/10 text-primary"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-1.5" />18 active now</span><span className="text-xs text-muted-foreground">No precise locations are shown</span></div><div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{people.map((person, i) => <button key={person.id} onClick={() => setSelected(person.id)} className={`paper-card text-left p-5 ${selected === person.id ? 'ring-2 ring-primary' : ''} reveal reveal-delay-${Math.min(i + 1, 3)}`} data-testid={`card-neighbor-${person.id}`}><div className="relative"><PetPhoto photo={person.photo} alt={`${person.pet}, ${person.detail}`} className="w-full aspect-[4/3] rounded-[1rem]" width={420} fallback={<span className={`block w-full h-full ${person.color}`} />} /><span className="tag absolute top-3 right-3 bg-card/85 backdrop-blur-sm">{person.distance}</span></div><div className="flex items-center gap-2.5 mt-4"><Avatar initials={person.initials} className="small" /><h2 className="serif text-2xl">{person.name}</h2></div><p className="text-sm font-semibold mt-1">{person.pet}</p><p className="text-xs text-muted-foreground mt-1">{person.detail}</p><div className={`rounded-xl ${person.color} mt-5 px-3 py-3 text-xs text-foreground/75 flex gap-2`}><Footprints size={14} className="shrink-0" />{person.note}</div><span className="flex items-center justify-between mt-5 text-xs font-bold text-primary">View neighbor <ArrowRight size={15} /></span></button>)}</div>
-      {chosen && <div ref={panel} className="paper-card mt-6 p-5 md:p-7 reveal" data-testid={`panel-neighbor-detail-${chosen.id}`}><div className="flex justify-between items-start"><div className="flex gap-4 items-center"><PetPhoto photo={chosen.photo} alt={`${chosen.pet}, ${chosen.detail}`} className="w-20 h-20 shrink-0 rounded-[1.4rem]" width={220} fallback={<span className={`block w-full h-full ${chosen.color}`} />} /><div><p className="eyebrow">{chosen.distance} away</p><h2 className="serif text-2xl">{chosen.name} & {chosen.pet}</h2><p className="text-xs text-muted-foreground mt-1">{chosen.detail}</p></div></div><button onClick={() => setSelected(null)} className="p-2 rounded-lg hover:bg-secondary" aria-label="Close neighbor details" data-testid="button-close-neighbor"><X size={18} /></button></div><p className="text-sm text-muted-foreground mt-5 max-w-xl">You are both in the Maple Park circle. PetCommunity keeps the introduction light: no last names, addresses, or personal profiles required.</p><div className="flex flex-wrap gap-2 mt-4"><span className="tag">Friendly introduction</span><span className="tag">Approximate distance</span><span className="tag">Neighborhood only</span></div><button onClick={() => startMessage(chosen.name, chosen.pet)} className="action-button button-primary mt-6" data-testid={`button-message-neighbor-${chosen.id}`}><MessageCircle size={16} /> Draft a friendly hello</button></div>}
+    <section className="page-wrap pb-10"><div className="flex items-center gap-2 mb-5"><span className="tag bg-primary/10 text-primary"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-1.5" />18 active now</span><span className="text-xs text-muted-foreground">No precise locations are shown</span></div><div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{listed.map((person, i) => <button key={person.id} onClick={() => setSelected(person.id)} className={`paper-card text-left p-5 ${selected === person.id ? 'ring-2 ring-primary' : ''} reveal reveal-delay-${Math.min(i + 1, 3)}`} data-testid={`card-neighbor-${person.id}`}><div className="relative"><PetPhoto photo={person.photo} portrait={person.portrait} alt={`${person.pet}, ${person.detail}`} className="w-full aspect-[4/3] rounded-[1rem]" width={420} fallback={<span className={`block w-full h-full ${person.color}`} />} /><span className="tag absolute top-3 right-3 bg-card/85 backdrop-blur-sm">{person.distance}</span></div><div className="flex items-center gap-2.5 mt-4"><Avatar initials={person.initials} className="small" /><h2 className="serif text-2xl">{person.name}</h2></div><p className="text-sm font-semibold mt-1">{person.pet}</p><p className="text-xs text-muted-foreground mt-1">{person.detail}</p><div className={`rounded-xl ${person.color} mt-5 px-3 py-3 text-xs text-foreground/75 flex gap-2`}><Footprints size={14} className="shrink-0" />{person.note}</div><span className="flex items-center justify-between mt-5 text-xs font-bold text-primary">View neighbor <ArrowRight size={15} /></span></button>)}</div>
+      {chosen && <div ref={panel} className="paper-card mt-6 p-5 md:p-7 reveal" data-testid={`panel-neighbor-detail-${chosen.id}`}><div className="flex justify-between items-start"><div className="flex gap-4 items-center"><PetPhoto photo={chosen.photo} portrait={chosen.portrait} alt={`${chosen.pet}, ${chosen.detail}`} className="w-20 h-20 shrink-0 rounded-[1.4rem]" width={220} fallback={<span className={`block w-full h-full ${chosen.color}`} />} /><div><p className="eyebrow">{chosen.distance} away</p><h2 className="serif text-2xl">{chosen.name} & {chosen.pet}</h2><p className="text-xs text-muted-foreground mt-1">{chosen.detail}</p></div></div><button onClick={() => setSelected(null)} className="p-2 rounded-lg hover:bg-secondary" aria-label="Close neighbor details" data-testid="button-close-neighbor"><X size={18} /></button></div><p className="text-sm text-muted-foreground mt-5 max-w-xl">You are both in the Maple Park circle. PetCommunity keeps the introduction light: no last names, addresses, or personal profiles required.</p><div className="flex flex-wrap gap-2 mt-4"><span className="tag">Friendly introduction</span><span className="tag">Approximate distance</span><span className="tag">Neighborhood only</span></div><button onClick={() => startMessage(chosen.name, chosen.pet)} className="action-button button-primary mt-6" data-testid={`button-message-neighbor-${chosen.id}`}><MessageCircle size={16} /> Draft a friendly hello</button></div>}
     </section>
   </main>;
 }
@@ -322,7 +356,7 @@ function AppContent() {
   // render of this file, so any notice would unmount and remount the whole page
   // and throw away its state (a sent message, an open panel). The children form
   // keeps the same component identity across renders.
-  return <Shell profile={profile} notice={notice} setNotice={setNotice}><RoutedErrorBoundary><Switch><Route path="/">{() => <Home notify={notify} profile={profile} />}</Route><Route path="/nearby">{() => <Nearby notify={notify} />}</Route><Route path="/walks">{() => <Walks notify={notify} />}</Route><Route path="/lost-pets">{() => <LostPets notify={notify} profile={profile} />}</Route><Route path="/lost-pets/:id">{(params: { id: string }) => <LostPetSearch caseId={params.id} notify={notify} />}</Route><Route path="/adopt">{() => <Adopt notify={notify} />}</Route><Route path="/shelters">{() => <Shelters notify={notify} />}</Route><Route path="/give">{() => <Give notify={notify} />}</Route><Route path="/messages">{() => <Messages notify={notify} />}</Route><Route path="/profile">{() => <Profile profile={profile} setProfile={setProfile} notify={notify} signedInAs={signedInAs} />}</Route><Route component={NotFoundView} /></Switch></RoutedErrorBoundary></Shell>;
+  return <Shell profile={profile} notice={notice} setNotice={setNotice}><RoutedErrorBoundary><Switch><Route path="/">{() => <Home notify={notify} profile={profile} />}</Route><Route path="/nearby">{() => <Nearby notify={notify} profile={profile} />}</Route><Route path="/walks">{() => <Walks notify={notify} />}</Route><Route path="/lost-pets">{() => <LostPets notify={notify} profile={profile} />}</Route><Route path="/lost-pets/:id">{(params: { id: string }) => <LostPetSearch caseId={params.id} notify={notify} />}</Route><Route path="/adopt">{() => <Adopt notify={notify} />}</Route><Route path="/shelters">{() => <Shelters notify={notify} />}</Route><Route path="/give">{() => <Give notify={notify} />}</Route><Route path="/messages">{() => <Messages notify={notify} />}</Route><Route path="/profile">{() => <Profile profile={profile} setProfile={setProfile} notify={notify} signedInAs={signedInAs} />}</Route><Route component={NotFoundView} /></Switch></RoutedErrorBoundary></Shell>;
 }
 
 function AccountsOff({ heading }: { heading: string }) {

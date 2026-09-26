@@ -21,9 +21,10 @@ import {
   EAR_OPTIONS,
   MARKING_OPTIONS,
   MOOD_OPTIONS,
-  PetPortrait,
 } from '@/components/pet-portrait';
 import { PageHeader, type Notify } from '@/components/page-bits';
+import { PetPhoto } from '@/components/pet-photo';
+import { PhotoPicker } from '@/components/photo-picker';
 import {
   BIO_LIMIT,
   NEIGHBOURHOODS,
@@ -115,15 +116,28 @@ export function Profile({
               <legend className="eyebrow mb-3">Profile picture</legend>
               <div className="grid sm:grid-cols-[150px_1fr] gap-6 items-start">
                 <div className="text-center sm:text-left">
-                  <PetPortrait spec={form.portrait} className="w-36 h-36 mx-auto sm:mx-0" />
-                  <button
-                    type="button"
-                    onClick={surprise}
-                    className="action-button button-quiet text-xs px-3 min-h-0 py-2 mt-3 w-full"
-                    data-testid="button-randomise-portrait"
-                  >
-                    <Dices size={14} /> Surprise me
-                  </button>
+                  <PetPhoto
+                    src={form.avatar}
+                    portrait={form.portrait}
+                    alt={form.petName}
+                    className="w-36 h-36 mx-auto sm:mx-0 rounded-[2.4rem]"
+                  />
+                  {!form.avatar && (
+                    <button
+                      type="button"
+                      onClick={surprise}
+                      className="action-button button-quiet text-xs px-3 min-h-0 py-2 mt-3 w-full"
+                      data-testid="button-randomise-portrait"
+                    >
+                      <Dices size={14} /> Surprise me
+                    </button>
+                  )}
+                  <PhotoPicker
+                    hasPhoto={Boolean(form.avatar)}
+                    onPicked={(avatar) => update({ avatar })}
+                    onCleared={() => update({ avatar: undefined })}
+                    onError={(text) => notify({ tone: 'error', text })}
+                  />
                 </div>
 
                 <div className="grid gap-4">
@@ -364,7 +378,7 @@ export function Profile({
               <p className="eyebrow">What neighbours see</p>
               <div className="rounded-[.9rem] border border-border p-4 mt-3">
                 <div className="flex gap-3">
-                  <PetPortrait spec={form.portrait} className="w-11 h-11 shrink-0" rounded={22} />
+                  <PetPhoto src={form.avatar} portrait={form.portrait} alt={form.petName} className="w-11 h-11 shrink-0 rounded-[.9rem]" />
                   <div className="min-w-0">
                     <p className="font-bold text-sm truncate">{form.username.trim() || 'Your username'}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">Just now · neighbours only</p>
@@ -383,7 +397,7 @@ export function Profile({
 
             <div className="paper-card p-5">
               <div className="flex gap-3">
-                <PetPortrait spec={form.portrait} className="w-14 h-14 shrink-0" rounded={22} />
+                <PetPhoto src={form.avatar} portrait={form.portrait} alt={form.petName} className="w-14 h-14 shrink-0 rounded-[1.1rem]" />
                 <div className="min-w-0">
                   <p className="serif text-xl leading-tight">{form.petName.trim() || 'Your pet'}</p>
                   <p className="text-xs text-muted-foreground mt-1">

@@ -42,6 +42,14 @@ export type Theme = {
   cardBorder: string;
   /** Quiet inner surfaces: nested panels, quoted notes, meter tracks. */
   muted: string;
+  /**
+   * The rail down the side. It stayed the same dark green in every section,
+   * which is a third of the screen refusing to acknowledge where you are.
+   * Dark enough for cream type in every case — checked, not assumed.
+   */
+  sidebar: string;
+  /** Raised panels inside the rail: the profile card, the privacy note. */
+  sidebarAccent: string;
   /** The ring on focus, kept in step with primary. */
   ring: string;
   /**
@@ -60,6 +68,8 @@ const BASE: Omit<Theme, 'path' | 'name'> = {
   card: '42 44% 99%',
   cardBorder: '36 25% 87%',
   muted: '39 28% 91%',
+  sidebar: '158 29% 22%',
+  sidebarAccent: '158 22% 29%',
   ring: '158 35% 29%',
   wash: '24',
 };
@@ -81,6 +91,8 @@ export const THEMES: Theme[] = [
     card: '200 52% 98%',
     cardBorder: '200 30% 89%',
     muted: '200 36% 94%',
+    sidebar: '205 38% 21%',
+    sidebarAccent: '205 30% 28%',
   },
   {
     path: '/walks',
@@ -95,6 +107,8 @@ export const THEMES: Theme[] = [
     card: '88 46% 98%',
     cardBorder: '92 26% 87%',
     muted: '88 30% 93%',
+    sidebar: '116 30% 18%',
+    sidebarAccent: '114 24% 25%',
   },
   {
     path: '/lost-pets',
@@ -109,6 +123,8 @@ export const THEMES: Theme[] = [
     card: '30 62% 98%',
     cardBorder: '28 34% 88%',
     muted: '30 44% 94%',
+    sidebar: '20 40% 19%',
+    sidebarAccent: '20 30% 26%',
   },
   {
     path: '/adopt',
@@ -125,6 +141,8 @@ export const THEMES: Theme[] = [
     card: '350 56% 98%',
     cardBorder: '350 30% 90%',
     muted: '350 40% 95%',
+    sidebar: '348 34% 21%',
+    sidebarAccent: '348 26% 28%',
   },
   {
     path: '/shelters',
@@ -139,6 +157,8 @@ export const THEMES: Theme[] = [
     card: '40 62% 97%',
     cardBorder: '38 32% 87%',
     muted: '40 44% 93%',
+    sidebar: '36 40% 17%',
+    sidebarAccent: '36 30% 24%',
   },
   {
     path: '/give',
@@ -153,6 +173,8 @@ export const THEMES: Theme[] = [
     card: '300 40% 98%',
     cardBorder: '300 22% 90%',
     muted: '300 28% 95%',
+    sidebar: '302 26% 21%',
+    sidebarAccent: '302 20% 28%',
   },
   {
     path: '/messages',
@@ -167,6 +189,8 @@ export const THEMES: Theme[] = [
     card: '220 44% 98%',
     cardBorder: '220 24% 90%',
     muted: '220 30% 95%',
+    sidebar: '222 30% 22%',
+    sidebarAccent: '222 24% 29%',
   },
   {
     path: '/profile',
@@ -181,6 +205,8 @@ export const THEMES: Theme[] = [
     card: '266 44% 98%',
     cardBorder: '266 24% 91%',
     muted: '266 30% 96%',
+    sidebar: '262 26% 23%',
+    sidebarAccent: '262 20% 30%',
   },
   { path: '/', name: 'Neighborhood', ...BASE },
 ];
@@ -207,10 +233,10 @@ export function themeFor(pathname: string): Theme {
 export function backgroundFor(theme: Theme): string {
   const hue = theme.primary.split(' ')[0];
   return [
-    `radial-gradient(1100px 620px at 8% -8%, hsl(${hue} 46% 94%) 0%, hsl(${hue} 46% 94% / 0) 62%)`,
-    `radial-gradient(900px 680px at 96% 4%, hsl(${theme.wash} 44% 95%) 0%, hsl(${theme.wash} 44% 95% / 0) 58%)`,
-    `radial-gradient(1000px 900px at 50% 108%, hsl(${theme.wash} 38% 96%) 0%, hsl(${theme.wash} 38% 96% / 0) 60%)`,
-    `linear-gradient(180deg, hsl(${theme.tint}) 0%, hsl(${hue} 22% 98%) 100%)`,
+    `radial-gradient(1100px 620px at 8% -8%, hsl(${hue} 52% 89%) 0%, hsl(${hue} 52% 89% / 0) 62%)`,
+    `radial-gradient(900px 680px at 96% 4%, hsl(${theme.wash} 56% 90%) 0%, hsl(${theme.wash} 56% 90% / 0) 58%)`,
+    `radial-gradient(1000px 900px at 50% 108%, hsl(${theme.wash} 46% 91%) 0%, hsl(${theme.wash} 46% 91% / 0) 60%)`,
+    `linear-gradient(180deg, hsl(${theme.tint}) 0%, hsl(${hue} 30% 95%) 100%)`,
   ].join(', ');
 }
 
@@ -231,5 +257,8 @@ export function themeVariables(theme: Theme): Record<string, string> {
     '--popover-border': theme.cardBorder,
     '--border': theme.cardBorder,
     '--muted': theme.muted,
+    '--sidebar': theme.sidebar,
+    '--sidebar-accent': theme.sidebarAccent,
+    '--sidebar-border': theme.sidebarAccent,
   };
 }

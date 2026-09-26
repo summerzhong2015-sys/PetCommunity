@@ -28,6 +28,7 @@ function source(photo: string, width: number, height = width): string {
 
 export function PetPhoto({
   photo,
+  src,
   portrait,
   fallback,
   alt,
@@ -37,6 +38,8 @@ export function PetPhoto({
   rounded,
 }: {
   photo?: string;
+  /** A ready-made image URL, used as-is. Wins over `photo`. */
+  src?: string;
   /** Drawn likeness, shown only if the photograph cannot be loaded. */
   portrait?: PortraitSpec;
   /** What to show instead of a portrait when there is no drawing for this one. */
@@ -56,16 +59,16 @@ export function PetPhoto({
   // would leave the photo permanently invisible behind the portrait.
   useEffect(() => {
     if (img.current?.complete && img.current.naturalWidth > 0) setLoaded(true);
-  }, [photo]);
+  }, [photo, src]);
 
-  const showPhoto = Boolean(photo) && !failed;
+  const showPhoto = Boolean(src || photo) && !failed;
   // The drawing is the fallback, never the loading state.
-  const showDrawing = !photo || failed;
+  const showDrawing = !(src || photo) || failed;
 
   return (
     <span
       className={`relative block overflow-hidden bg-secondary ${className}`}
-      data-testid={`pet-photo-${photo ?? 'none'}`}
+      data-testid={`pet-photo-${src ? 'own' : photo ?? 'none'}`}
       data-state={showDrawing ? 'drawn' : loaded ? 'photo' : 'loading'}
     >
       {showDrawing && portrait && <PetPortrait spec={portrait} className="w-full h-full" rounded={rounded} />}
@@ -77,7 +80,7 @@ export function PetPhoto({
       {showPhoto && (
         <img
           ref={img}
-          src={source(photo!, width, height)}
+          src={src ?? source(photo!, width, height)}
           alt={alt}
           loading="lazy"
           decoding="async"

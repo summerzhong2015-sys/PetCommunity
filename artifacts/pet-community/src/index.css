@@ -274,7 +274,9 @@
   .app-shell { min-height: 100dvh; }
   .serif { font-family: var(--app-font-serif); }
   .mono { font-family: var(--app-font-mono); }
-  .eyebrow { font-family: var(--app-font-mono); font-size: .67rem; letter-spacing: .14em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+  /* Section labels take the section's colour. They were grey everywhere, which
+     is a lot of small type doing nothing. */
+  .eyebrow { font-family: var(--app-font-mono); font-size: .67rem; letter-spacing: .14em; text-transform: uppercase; color: hsl(var(--primary) / .78); }
   .page-wrap { width: min(100% - 2rem, 1160px); margin: 0 auto; }
   .paper-card { background: hsl(var(--card)); border: 1px solid hsl(var(--card-border)); border-radius: 1.2rem; box-shadow: var(--shadow-sm); }
   .paper-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }

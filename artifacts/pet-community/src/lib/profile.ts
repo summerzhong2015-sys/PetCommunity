@@ -30,6 +30,8 @@ export type PetProfile = {
   /** What neighbours should know — the bit that makes a hello easy. */
   bio: string;
   portrait: PortraitSpec;
+  /** A photo from their album, kept in this browser. Beats the drawing when set. */
+  avatar?: string;
 };
 
 export const NEIGHBOURHOODS = LANDMARKS.map((l) => l.name);
@@ -62,6 +64,9 @@ export function normalizeProfile(value: Partial<PetProfile> | null | undefined):
     // Opting in has to be explicit: an older stored profile, or a corrupted
     // one, must never read as consent to be listed.
     shareArea: value?.shareArea === true,
+    // Only a data URL we produced ourselves is kept; anything else is dropped
+    // rather than handed to an <img src>.
+    avatar: typeof value?.avatar === 'string' && value.avatar.startsWith('data:image/') ? value.avatar : undefined,
     bio: value?.bio ?? '',
     portrait:
       portrait && portrait.coat && portrait.marking && portrait.ears && portrait.mood

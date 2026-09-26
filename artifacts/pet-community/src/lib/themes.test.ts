@@ -54,6 +54,7 @@ const PRIMARY_FOREGROUND = '42 36% 97%';
 const ACCENT_FOREGROUND = '157 28% 16%';
 const SECONDARY_FOREGROUND = '157 25% 19%';
 const MUTED_FOREGROUND = '157 14% 39%';
+const SIDEBAR_FOREGROUND = '42 36% 95%';
 
 
 // --- sanity on the maths itself -------------------------------------------
@@ -163,7 +164,15 @@ for (const theme of THEMES) {
   // Match the lightness inside hsl(), not the gradient stop positions after it.
   const lightnesses = [...css.matchAll(/hsl\(\d{1,3} \d{1,3}% (\d{1,3})%/g)].map((m) => Number(m[1]));
   check(`${label}: nothing in the wash is dark enough to fight the text`,
-    lightnesses.every((l) => l >= 93), `${Math.min(...lightnesses)}%`);
+    lightnesses.every((l) => l >= 88), `${Math.min(...lightnesses)}%`);
+
+  // The bar that actually matters: page text sitting on the deepest part of it.
+  const deepest = css.match(new RegExp(`hsl\\((\\d{1,3}) (\\d{1,3})% (${Math.min(...lightnesses)})%`));
+  if (deepest) {
+    const onDeepest = contrast(`${deepest[1]} ${deepest[2]}% ${deepest[3]}%`, FOREGROUND);
+    check(`${label}: page text is still easy on the deepest part of the wash`,
+      onDeepest >= 7, onDeepest.toFixed(2));
+  }
 
   check(`${label}: the wash hue is far enough from the primary to be visible`,
     (() => {
@@ -176,6 +185,37 @@ for (const theme of THEMES) {
 {
   const washes = THEMES.map((t) => backgroundFor(t));
   check('every section gets a different background', new Set(washes).size === washes.length);
+}
+
+// --- the side rail --------------------------------------------------------
+for (const theme of THEMES) {
+  const label = theme.name;
+
+  const onRail = contrast(theme.sidebar, SIDEBAR_FOREGROUND);
+  check(`${label}: the rail carries cream type`, onRail >= 7, onRail.toFixed(2));
+
+  const onRailPanel = contrast(theme.sidebarAccent, SIDEBAR_FOREGROUND);
+  check(`${label}: a panel inside the rail carries cream type`, onRailPanel >= 4.5, onRailPanel.toFixed(2));
+
+  // The accent doubles as the rail's highlight, on the darker rail colour.
+  const accentOnRail = contrast(theme.accent, theme.sidebar);
+  check(`${label}: the rail highlight stands out on it`, accentOnRail >= 4.5, accentOnRail.toFixed(2));
+
+  // A panel has to be findable against the rail without being a second colour.
+  const panelOffRail = contrast(theme.sidebarAccent, theme.sidebar);
+  check(`${label}: the panel reads as raised off the rail`,
+    panelOffRail > 1.1 && panelOffRail < 2, panelOffRail.toFixed(2));
+
+  check(`${label}: the rail is genuinely dark`,
+    Number.parseInt(theme.sidebar.split(' ')[2], 10) <= 26, theme.sidebar);
+  check(`${label}: rail colours are valid triples`,
+    [theme.sidebar, theme.sidebarAccent].every((v) => /^\d{1,3} \d{1,3}% \d{1,3}%$/.test(v)));
+}
+
+{
+  const rails = THEMES.map((t) => t.sidebar);
+  check('the rail changes with the section', new Set(rails).size === rails.length,
+    rails.filter((r, i) => rails.indexOf(r) !== i).join(' | '));
 }
 
 // --- the palettes are actually different ----------------------------------
@@ -224,6 +264,7 @@ for (const theme of THEMES) {
   check('nothing overrides the page base colour', !('--background' in vars));
   // The paper itself is themed on purpose; the ink on it is not.
   check('the card paper is themed', vars['--card'] === THEMES[0].card);
+  check('the rail is themed', vars['--sidebar'] === THEMES[0].sidebar);
   check('popovers use the same paper as cards', vars['--popover'] === vars['--card']);
   check('borders follow the card edge', vars['--border'] === THEMES[0].cardBorder);
 }

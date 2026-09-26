@@ -118,8 +118,8 @@ export function Adopt({ notify }: { notify: Notify }) {
                 <p className="text-sm text-muted-foreground mt-1">
                   {longestWaiting.breed} · {longestWaiting.ageLabel} · {longestWaiting.inCareSince}
                 </p>
-                <p className="mt-4 leading-relaxed">{longestWaiting.headline}</p>
-                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{longestWaiting.story}</p>
+                <p className="mt-4 pull-line">{longestWaiting.headline}</p>
+                <p className="text-muted-foreground mt-3 prose-note">{longestWaiting.story}</p>
                 <button
                   onClick={() => setOpenId(longestWaiting.id)}
                   className="action-button button-primary mt-5"
@@ -220,7 +220,7 @@ export function Adopt({ notify }: { notify: Notify }) {
                     <p className="text-xs text-muted-foreground mt-1">
                       {pet.breed} · {pet.ageLabel} · {pet.sex}
                     </p>
-                    <p className="text-sm mt-3 leading-relaxed">{pet.headline}</p>
+                    <p className="mt-3 pull-line">{pet.headline}</p>
                     <p className="text-xs text-muted-foreground mt-4 inline-flex items-center gap-1.5">
                       <MapPin size={12} /> {shelter.name}
                     </p>
@@ -345,7 +345,7 @@ function PetDetail({
         </button>
       </div>
 
-      <p className="mt-5 leading-relaxed">{pet.story}</p>
+      <p className="mt-5 prose-story">{pet.story}</p>
 
       <div className="grid md:grid-cols-3 gap-5 mt-6">
         <div>

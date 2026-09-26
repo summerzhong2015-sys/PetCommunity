@@ -331,6 +331,63 @@
 /* Sections have their own palettes. Easing the change keeps a tab switch from
    flashing a new colour at you; the tokens themselves are set in App.tsx. */
 .theme-surface { transition: background-color 700ms ease; }
+/* ---- Reading -------------------------------------------------------------
+ * Long text was set the same as short text: 14–16px sans, running the full
+ * width of a card, which on a wide screen is well over a hundred characters a
+ * line. That is the bit that felt bland — not the colour, the reading.
+ *
+ * Stories get the serif the headings already use, a little more size, more air
+ * between lines, and a measure that stops around 62 characters. A drop cap
+ * marks where a story starts.
+ */
+.prose-story {
+  font-family: var(--app-font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.72;
+  max-width: 62ch;
+  font-variation-settings: 'SOFT' 40, 'WONK' 0;
+  letter-spacing: .002em;
+}
+.prose-story::first-letter {
+  float: left;
+  font-family: var(--app-font-serif);
+  font-size: 3.15em;
+  line-height: .8;
+  font-weight: 600;
+  margin: .06em .1em 0 0;
+  color: hsl(var(--primary));
+}
+/* A drop cap only makes sense where there is a story under it. */
+.prose-story.no-cap::first-letter { float: none; font-size: inherit; line-height: inherit; margin: 0; color: inherit; font-weight: inherit; }
+
+/* Shorter prose — a description, a note, a post — still wants the serif and a
+   measure, just without the ceremony. */
+.prose-note {
+  font-family: var(--app-font-serif);
+  font-size: .975rem;
+  line-height: 1.68;
+  max-width: 58ch;
+}
+
+/* The one line that says why an animal is still waiting. It was a paragraph
+   like any other; it is the most important sentence on the card. */
+.pull-line {
+  font-family: var(--app-font-serif);
+  font-size: 1.12rem;
+  line-height: 1.45;
+  font-style: italic;
+  color: hsl(var(--primary));
+  border-left: 3px solid hsl(var(--accent));
+  padding-left: .85rem;
+  max-width: 46ch;
+}
+
+@media (max-width: 640px) {
+  .prose-story { font-size: 1rem; line-height: 1.68; }
+  .prose-story::first-letter { font-size: 2.7em; }
+  .pull-line { font-size: 1.04rem; }
+}
+
 /* A photograph on its way, rather than a hole in the page. */
 @keyframes photo-loading { 0%, 100% { opacity: .5; } 50% { opacity: .95; } }
 .photo-loading {

@@ -106,6 +106,26 @@ for (const campaign of CAMPAIGNS) {
     repeated.map(([p, places]) => `${p}: ${places.join(', ')}`).join(' | '));
 }
 
+// --- text that has to hold a drop cap -------------------------------------
+// Stories are set as prose with a drop cap on the first letter. A one-line
+// story under a three-line capital looks like a mistake, and a headline long
+// enough to wrap three times stops being a pull quote.
+for (const pet of ADOPTABLE_PETS) {
+  check(`${pet.name}: the story is long enough to carry a drop cap`,
+    pet.story.length >= 140, `${pet.story.length}`);
+  check(`${pet.name}: the story starts with a letter, not a quote or a number`,
+    /^[A-Za-z]/.test(pet.story), pet.story.slice(0, 12));
+  check(`${pet.name}: the headline works as a pulled line`,
+    pet.headline.length >= 20 && pet.headline.length <= 90, `${pet.headline.length}`);
+}
+
+for (const campaign of CAMPAIGNS) {
+  check(`${campaign.title}: the story is long enough to carry a drop cap`,
+    campaign.story.length >= 140, `${campaign.story.length}`);
+  check(`${campaign.title}: the story starts with a letter`,
+    /^[A-Za-z]/.test(campaign.story), campaign.story.slice(0, 12));
+}
+
 console.log(out.join('\n'));
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

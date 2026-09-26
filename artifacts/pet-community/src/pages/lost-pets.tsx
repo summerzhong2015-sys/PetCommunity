@@ -620,7 +620,7 @@ function AlertCard({
       </div>
 
       <p className="font-bold text-sm mt-5">Last seen at {item.lastSeenPlace}</p>
-      <p className="text-sm leading-relaxed mt-1">{item.description}</p>
+      <p className="mt-1.5 prose-note">{item.description}</p>
 
       {item.foundNote && (
         <p className="text-sm leading-relaxed mt-3 pl-3 border-l-2 border-primary/40 text-muted-foreground">

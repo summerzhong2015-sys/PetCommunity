@@ -349,7 +349,7 @@ function CampaignDetail({
         </button>
       </div>
 
-      <p className="mt-5 leading-relaxed max-w-3xl">{campaign.story}</p>
+      <p className="mt-5 prose-story">{campaign.story}</p>
 
       <div className="grid lg:grid-cols-2 gap-8 mt-7">
         <div className="space-y-6">

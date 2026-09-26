@@ -1,14 +1,18 @@
 /**
- * A real photograph of an animal, with the drawn portrait behind it.
+ * A real photograph of an animal, with a drawing as the safety net.
  *
- * The photographs are hosted by Unsplash, which means they are one outage, one
- * blocked request or one flaky connection away from a blank grey box where a
- * dog's face should be. So the portrait renders first and the photo fades in
- * over it once the browser confirms it actually decoded; if it never does, or
- * if it errors, what stays on screen is the drawing. A listing is never empty.
+ * The drawing used to render underneath and the photo fade in over it, which
+ * meant every card flashed a cartoon dog for a moment before the real animal
+ * arrived — the drawing was doing its job as a fallback and also, accidentally,
+ * as a loading state. So now nothing recognisable shows while an image is in
+ * flight: a plain tinted block holds the space, the photo appears when it has
+ * actually decoded, and the drawing appears only if the photo never arrives.
+ *
+ * The photographs are hosted by Unsplash, so they are one outage or one blocked
+ * request away from a grey broken-image box. That is what the drawing is for.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PetPortrait, type PortraitSpec } from '@/components/pet-portrait';
 
 /** Unsplash serves a resized, modern-format image from these parameters. */
@@ -19,13 +23,17 @@ function source(photo: string, width: number): string {
 export function PetPhoto({
   photo,
   portrait,
+  fallback,
   alt,
   className = '',
   width = 600,
   rounded,
 }: {
   photo?: string;
-  portrait: PortraitSpec;
+  /** Drawn likeness, shown only if the photograph cannot be loaded. */
+  portrait?: PortraitSpec;
+  /** What to show instead of a portrait when there is no drawing for this one. */
+  fallback?: ReactNode;
   alt: string;
   className?: string;
   width?: number;
@@ -42,10 +50,17 @@ export function PetPhoto({
   }, [photo]);
 
   const showPhoto = Boolean(photo) && !failed;
+  // The drawing is the fallback, never the loading state.
+  const showDrawing = !photo || failed;
 
   return (
-    <span className={`relative block overflow-hidden ${className}`} data-testid={`pet-photo-${photo ?? 'none'}`}>
-      <PetPortrait spec={portrait} className="w-full h-full" rounded={rounded} />
+    <span
+      className={`relative block overflow-hidden bg-secondary ${className}`}
+      data-testid={`pet-photo-${photo ?? 'none'}`}
+      data-state={showDrawing ? 'drawn' : loaded ? 'photo' : 'loading'}
+    >
+      {showDrawing && portrait && <PetPortrait spec={portrait} className="w-full h-full" rounded={rounded} />}
+      {showDrawing && !portrait && fallback}
       {showPhoto && (
         <img
           ref={img}

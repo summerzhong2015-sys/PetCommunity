@@ -10,7 +10,7 @@
  * Run with:  pnpm --filter @workspace/pet-community run test:themes
  */
 
-import { DEFAULT_THEME, THEMES, themeFor, themeVariables, type Theme } from './themes.ts';
+import { DEFAULT_THEME, THEMES, backgroundFor, themeFor, themeVariables, type Theme } from './themes.ts';
 
 let pass = 0, fail = 0;
 const out: string[] = [];
@@ -68,7 +68,7 @@ for (const theme of THEMES) {
   const label = theme.name;
 
   for (const [field, value] of Object.entries(theme)) {
-    if (field === 'path' || field === 'name') continue;
+    if (field === 'path' || field === 'name' || field === 'wash') continue;
     check(`${label}: ${field} is a valid HSL triple`,
       /^\d{1,3} \d{1,3}% \d{1,3}%$/.test(value as string), value as string);
   }
@@ -98,6 +98,40 @@ for (const theme of THEMES) {
   check(`${label}: cards still read as raised off the page`, tintAgainstCard < 1.35, tintAgainstCard.toFixed(3));
 
   check(`${label}: the ring follows the primary`, theme.ring === theme.primary);
+}
+
+// --- the background wash ---------------------------------------------------
+for (const theme of THEMES) {
+  const label = theme.name;
+  check(`${label}: the wash hue is a number on the wheel`,
+    /^\d{1,3}$/.test(theme.wash) && Number(theme.wash) <= 360, theme.wash);
+
+  const css = backgroundFor(theme);
+  check(`${label}: the background is layered, not flat`, css.split('radial-gradient').length - 1 >= 3);
+  check(`${label}: it ends on the section tint`, css.includes(`hsl(${theme.tint})`));
+  check(`${label}: it only uses this section's hues`, (() => {
+    const hues = [...css.matchAll(/hsl\((\d{1,3})[ )]/g)].map((m) => m[1]);
+    const allowed = new Set([theme.primary.split(' ')[0], theme.wash, theme.tint.split(' ')[0]]);
+    return hues.every((h) => allowed.has(h));
+  })(), css.slice(0, 60));
+
+  // Everything in the wash has to stay pale enough to put text and cards over.
+  // Match the lightness inside hsl(), not the gradient stop positions after it.
+  const lightnesses = [...css.matchAll(/hsl\(\d{1,3} \d{1,3}% (\d{1,3})%/g)].map((m) => Number(m[1]));
+  check(`${label}: nothing in the wash is dark enough to fight the text`,
+    lightnesses.every((l) => l >= 93), `${Math.min(...lightnesses)}%`);
+
+  check(`${label}: the wash hue is far enough from the primary to be visible`,
+    (() => {
+      const a = Number(theme.primary.split(' ')[0]), b = Number(theme.wash);
+      const d = Math.abs(a - b);
+      return Math.min(d, 360 - d) >= 10;
+    })(), `${theme.primary.split(' ')[0]} vs ${theme.wash}`);
+}
+
+{
+  const washes = THEMES.map((t) => backgroundFor(t));
+  check('every section gets a different background', new Set(washes).size === washes.length);
 }
 
 // --- the palettes are actually different ----------------------------------

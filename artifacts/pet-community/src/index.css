@@ -329,7 +329,12 @@
 /* Sections have their own palettes. Easing the change keeps a tab switch from
    flashing a new colour at you; the tokens themselves are set in App.tsx. */
 .theme-surface { transition: background-color 700ms ease; }
-@media (prefers-reduced-motion: reduce) { .theme-surface { transition: none; } }
+@keyframes theme-wash-in { from { opacity: 0; } to { opacity: 1; } }
+.theme-wash { animation: theme-wash-in 700ms ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .theme-surface { transition: none; }
+  .theme-wash { animation: none; }
+}
 
 /* The scene behind the app: drifting clouds and a slow twinkle. Long loops on
    purpose — the sky should reward a glance, not demand one. */

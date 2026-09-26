@@ -33,6 +33,12 @@ export type Theme = {
   tint: string;
   /** The ring on focus, kept in step with primary. */
   ring: string;
+  /**
+   * A second hue for the background wash, so the page is not one flat colour.
+   * Chosen a little way round the wheel from the primary — far enough that the
+   * gradient has somewhere to travel, close enough that it stays one mood.
+   */
+  wash: string;
 };
 
 const BASE: Omit<Theme, 'path' | 'name'> = {
@@ -41,6 +47,7 @@ const BASE: Omit<Theme, 'path' | 'name'> = {
   secondary: '36 40% 91%',
   tint: '42 32% 96%',
   ring: '158 35% 29%',
+  wash: '24',
 };
 
 /**
@@ -56,6 +63,7 @@ export const THEMES: Theme[] = [
     secondary: '200 34% 91%',
     tint: '200 40% 96%',
     ring: '205 44% 31%',
+    wash: '168',
   },
   {
     path: '/walks',
@@ -66,6 +74,7 @@ export const THEMES: Theme[] = [
     secondary: '90 26% 90%',
     tint: '84 32% 96%',
     ring: '112 30% 26%',
+    wash: '52',
   },
   {
     path: '/lost-pets',
@@ -76,6 +85,7 @@ export const THEMES: Theme[] = [
     secondary: '28 46% 90%',
     tint: '30 52% 96%',
     ring: '19 52% 34%',
+    wash: '44',
   },
   {
     path: '/adopt',
@@ -88,6 +98,7 @@ export const THEMES: Theme[] = [
     secondary: '350 40% 92%',
     tint: '350 46% 97%',
     ring: '350 44% 37%',
+    wash: '28',
   },
   {
     path: '/shelters',
@@ -98,6 +109,7 @@ export const THEMES: Theme[] = [
     secondary: '42 44% 90%',
     tint: '40 55% 95%',
     ring: '40 48% 26%',
+    wash: '150',
   },
   {
     path: '/give',
@@ -108,6 +120,7 @@ export const THEMES: Theme[] = [
     secondary: '300 24% 92%',
     tint: '300 30% 97%',
     ring: '300 26% 33%',
+    wash: '250',
   },
   {
     path: '/messages',
@@ -118,6 +131,7 @@ export const THEMES: Theme[] = [
     secondary: '220 28% 92%',
     tint: '220 32% 97%',
     ring: '222 32% 33%',
+    wash: '188',
   },
   {
     path: '/profile',
@@ -128,6 +142,7 @@ export const THEMES: Theme[] = [
     secondary: '265 26% 92%',
     tint: '268 34% 97%',
     ring: '262 26% 36%',
+    wash: '212',
   },
   { path: '/', name: 'Neighborhood', ...BASE },
 ];
@@ -141,6 +156,24 @@ export function themeFor(pathname: string): Theme {
     if (pathname === theme.path || pathname.startsWith(`${theme.path}/`)) return theme;
   }
   return DEFAULT_THEME;
+}
+
+/**
+ * The page background: two soft pools of colour over the section's tint.
+ *
+ * Kept deliberately pale — everything here sits between 94% and 98% lightness —
+ * because cards, headers and body text all sit on top of it and a background
+ * with any real colour in it turns the whole page into a poster. The point is
+ * that the eye registers a different room, not a different brand.
+ */
+export function backgroundFor(theme: Theme): string {
+  const hue = theme.primary.split(' ')[0];
+  return [
+    `radial-gradient(1100px 620px at 8% -8%, hsl(${hue} 46% 94%) 0%, hsl(${hue} 46% 94% / 0) 62%)`,
+    `radial-gradient(900px 680px at 96% 4%, hsl(${theme.wash} 44% 95%) 0%, hsl(${theme.wash} 44% 95% / 0) 58%)`,
+    `radial-gradient(1000px 900px at 50% 108%, hsl(${theme.wash} 38% 96%) 0%, hsl(${theme.wash} 38% 96% / 0) 60%)`,
+    `linear-gradient(180deg, hsl(${theme.tint}) 0%, hsl(${hue} 22% 98%) 100%)`,
+  ].join(', ');
 }
 
 /** The theme as custom properties, ready to hand to `style`. */

@@ -27,6 +27,8 @@ export type Shelter = {
   visiting: string;
   animalsInCare: number;
   foundedYear: number;
+  /** A photograph of the place, or of what they do. */
+  photo?: string;
 };
 
 export type AdoptionStatus = 'available' | 'pending' | 'foster-needed';
@@ -62,6 +64,7 @@ export type AdoptablePet = {
 export const SHELTERS: Shelter[] = [
   {
     id: 'maple-ridge',
+    photo: '1675701917791-debd2d61cc4a',
     name: 'Maple Ridge Animal Shelter',
     kind: 'shelter',
     area: 'North Creek',
@@ -78,6 +81,7 @@ export const SHELTERS: Shelter[] = [
   },
   {
     id: 'willow-cat',
+    photo: '1558618047-f4b511aae74d',
     name: 'Willow Gate Cat Rescue',
     kind: 'rescue',
     area: 'Willow Gate',
@@ -94,6 +98,7 @@ export const SHELTERS: Shelter[] = [
   },
   {
     id: 'second-chance',
+    photo: '1594004844563-536a03a6e532',
     name: 'Second Chance Foster Network',
     kind: 'foster network',
     area: 'Alder Street',
@@ -110,6 +115,7 @@ export const SHELTERS: Shelter[] = [
   },
   {
     id: 'east-ridge-vet',
+    photo: '1644675272883-0c4d582528d8',
     name: 'East Ridge Animal Hospital',
     kind: 'clinic',
     area: 'East Ridge',

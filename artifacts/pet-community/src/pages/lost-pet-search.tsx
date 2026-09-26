@@ -20,6 +20,8 @@ import {
   Flame,
   Home,
   Layers,
+  ListChecks,
+  Printer,
   MapPin,
   Radar,
   ScanText,
@@ -35,6 +37,8 @@ import { formatAge, predict, type Sighting, type Weather } from '@/lib/lost-pet-
 import { readReport } from '@/lib/report-reader';
 import { PetPhoto } from '@/components/pet-photo';
 import { review } from '@/lib/moderation';
+import { LostPetPoster } from '@/components/lost-pet-poster';
+import { firstHour, headlineAdvice } from '@/lib/first-hour';
 import { nearestLandmark, type Vec } from '@/lib/neighborhood-map';
 
 type StoredSighting = {
@@ -69,6 +73,8 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
   const [extra, setExtra] = useStored<StoredSighting[]>(`pc-sightings-${caseId}`, []);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [showHeat, setShowHeat] = useState(true);
+  const [showSteps, setShowSteps] = useState(false);
+  const [showPoster, setShowPoster] = useState(false);
   const [showRings, setShowRings] = useState(true);
   const [lookahead, setLookahead] = useState(0);
   const [weather, setWeather] = useState<Weather>(item?.weather ?? 'clear');
@@ -195,6 +201,75 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
       />
 
       <section className="page-wrap pb-12 space-y-5">
+        {item.status === 'Active' && (
+          <div className="paper-card p-5 md:p-6 no-print" data-testid="panel-first-hour">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="eyebrow">The first hour is the one that counts</p>
+                <p className="serif text-2xl mt-1 leading-tight">
+                  {headlineAdvice(item.species, item.temperament)}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowSteps((v) => !v)}
+                  aria-expanded={showSteps}
+                  className="action-button button-quiet text-xs min-h-0 py-2"
+                  data-testid="button-first-hour"
+                >
+                  <ListChecks size={14} /> {showSteps ? 'Hide the list' : 'What to do now'}
+                </button>
+                <button
+                  onClick={() => setShowPoster((v) => !v)}
+                  aria-expanded={showPoster}
+                  className="action-button button-primary text-xs min-h-0 py-2"
+                  data-testid="button-poster"
+                >
+                  <Printer size={14} /> {showPoster ? 'Hide the poster' : 'Make a poster'}
+                </button>
+              </div>
+            </div>
+
+            {showSteps && (
+              <ol className="mt-5 space-y-4 reveal" data-testid="list-first-hour">
+                {firstHour({ name: item.petName, species: item.species, temperament: item.temperament }).map(
+                  (step, index) => (
+                    <li key={step.title} className="flex gap-3.5">
+                      <span
+                        className={`grid place-items-center w-7 h-7 rounded-full shrink-0 mono text-[11px] font-bold ${
+                          step.emphasis ? 'bg-destructive text-destructive-foreground' : 'bg-secondary text-foreground'
+                        }`}
+                      >
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className={`text-sm font-bold ${step.emphasis ? 'text-destructive' : ''}`}>{step.title}</p>
+                        <p className="prose-note no-cap text-muted-foreground mt-1">{step.detail}</p>
+                      </div>
+                    </li>
+                  ),
+                )}
+              </ol>
+            )}
+          </div>
+        )}
+
+        {showPoster && (
+          <div className="reveal poster-only-wrap" data-testid="panel-poster">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3 no-print">
+              <p className="text-sm text-muted-foreground">
+                Print this, or screenshot it for a group chat. Nothing on it gives away where you live.
+              </p>
+              <button onClick={() => window.print()} className="action-button button-primary text-xs min-h-0 py-2" data-testid="button-print-poster">
+                <Printer size={14} /> Print
+              </button>
+            </div>
+            <div className="max-w-md mx-auto">
+              <LostPetPoster item={item} minutesMissing={minutes} />
+            </div>
+          </div>
+        )}
+
         {item.status === 'Reunited' && (
           <div className="paper-card p-5 flex items-start gap-3" data-testid="banner-reunited">
             <CheckCircle2 size={20} className="text-primary shrink-0 mt-0.5" />

@@ -17,6 +17,7 @@ import {
   Home,
   Info,
   MapPin,
+  PawPrint,
   Send,
   ShieldCheck,
   ClipboardList,
@@ -28,6 +29,7 @@ import {
 import { PetPhoto } from '@/components/pet-photo';
 import { EmptyState, PageHeader, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
 import { ADOPTABLE_PETS, SHELTERS, shelterOf, type AdoptablePet } from '@/lib/adoption-data';
+import { CAMPAIGNS } from '@/lib/giving-data';
 
 type SpeciesFilter = 'all' | 'dog' | 'cat';
 type AgeFilter = 'all' | 'young' | 'adult' | 'senior';
@@ -736,9 +738,52 @@ export function Shelters({ notify }: { notify: Notify }) {
               className={`paper-card p-6 reveal reveal-delay-${Math.min(i + 1, 3)}`}
               data-testid={`card-shelter-${shelter.id}`}
             >
-              <p className="eyebrow">{shelter.area} · {shelter.kind} · since {shelter.foundedYear}</p>
-              <h2 className="serif text-2xl mt-1">{shelter.name}</h2>
-              <p className="text-sm mt-3 leading-relaxed">{shelter.about}</p>
+              <div className="flex flex-col sm:flex-row gap-5">
+                <PetPhoto
+                  photo={shelter.photo}
+                  alt={shelter.name}
+                  className="w-full sm:w-44 aspect-[4/3] sm:aspect-square rounded-[1rem] shrink-0"
+                  width={420}
+                  fallback={<span className="block w-full h-full bg-secondary" />}
+                />
+                <div className="min-w-0">
+                  <p className="eyebrow">{shelter.area} · {shelter.kind} · since {shelter.foundedYear}</p>
+                  <h2 className="serif text-2xl mt-1">{shelter.name}</h2>
+                  <p className="prose-note no-cap mt-3">{shelter.about}</p>
+
+                  {/* The three sections of the app already know about each other
+                      through shelterId and beneficiary; until now nothing said so. */}
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {(() => {
+                      const theirs = ADOPTABLE_PETS.filter((p) => p.shelterId === shelter.id);
+                      const funding = CAMPAIGNS.filter((c) => c.shelterId === shelter.id);
+                      return (
+                        <>
+                          {theirs.length > 0 && (
+                            <Link
+                              href="/adopt"
+                              className="action-button button-quiet text-xs min-h-0 py-2"
+                              data-testid={`link-shelter-pets-${shelter.id}`}
+                            >
+                              <PawPrint size={14} /> {theirs.length} looking for homes
+                            </Link>
+                          )}
+                          {funding.length > 0 && (
+                            <Link
+                              href="/give"
+                              className="action-button button-quiet text-xs min-h-0 py-2"
+                              data-testid={`link-shelter-giving-${shelter.id}`}
+                            >
+                              <HeartHandshake size={14} /> {funding.length === 1 ? 'A campaign' : `${funding.length} campaigns`} for them
+                            </Link>
+                          )}
+                          <span className="tag">{shelter.animalsInCare} in care</span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
 
               <dl className="mt-5 space-y-2 text-sm">
                 <div className="flex gap-3">

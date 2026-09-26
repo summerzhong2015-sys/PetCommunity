@@ -15,7 +15,7 @@
  * Run with:  pnpm --filter @workspace/pet-community run test:adoption
  */
 
-import { ADOPTABLE_PETS } from './adoption-data.ts';
+import { ADOPTABLE_PETS, SHELTERS } from './adoption-data.ts';
 import { LOST_CASES } from './lost-pet-data.ts';
 import { CAMPAIGNS } from './giving-data.ts';
 
@@ -124,6 +124,41 @@ for (const campaign of CAMPAIGNS) {
     campaign.story.length >= 140, `${campaign.story.length}`);
   check(`${campaign.title}: the story starts with a letter`,
     /^[A-Za-z]/.test(campaign.story), campaign.story.slice(0, 12));
+}
+
+// --- shelters, and the links between the three sections -------------------
+for (const shelter of SHELTERS) {
+  check(`${shelter.name}: has a photograph`, typeof shelter.photo === 'string' && shelter.photo.length > 0);
+  check(`${shelter.name}: the photo id is well formed`,
+    /^[0-9]{10,16}-[0-9a-z]{12}$/.test(shelter.photo ?? ''), shelter.photo ?? '(none)');
+}
+
+{
+  const photos = SHELTERS.map((s) => s.photo);
+  check('no two shelters share a photograph', new Set(photos).size === photos.length);
+}
+
+// Every pet points at a shelter that exists, and every shelter that a campaign
+// names exists too — otherwise a card links to nothing.
+{
+  const ids = new Set(SHELTERS.map((s) => s.id));
+  check('every adoptable pet belongs to a real shelter',
+    ADOPTABLE_PETS.every((p) => ids.has(p.shelterId)),
+    ADOPTABLE_PETS.filter((p) => !ids.has(p.shelterId)).map((p) => p.name).join(', '));
+
+  const linked = CAMPAIGNS.filter((c) => c.shelterId);
+  check('every campaign that names a shelter names a real one',
+    linked.every((c) => ids.has(c.shelterId!)),
+    linked.filter((c) => !ids.has(c.shelterId!)).map((c) => c.title).join(', '));
+  check('at least some campaigns are tied to a shelter', linked.length >= 3, `${linked.length}`);
+
+  // A shelter card counts its animals and its campaigns; both must be findable.
+  for (const shelter of SHELTERS) {
+    const theirs = ADOPTABLE_PETS.filter((p) => p.shelterId === shelter.id);
+    const funding = CAMPAIGNS.filter((c) => c.shelterId === shelter.id);
+    check(`${shelter.name}: has either animals or a campaign to link to`,
+      theirs.length > 0 || funding.length > 0);
+  }
 }
 
 console.log(out.join('\n'));

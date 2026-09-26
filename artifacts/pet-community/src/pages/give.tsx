@@ -21,6 +21,7 @@ import {
   Receipt,
   Stethoscope,
   Users,
+  ChevronDown,
   X,
 } from 'lucide-react';
 import { PetPhoto } from '@/components/pet-photo';
@@ -58,6 +59,7 @@ const FILTERS: { value: CampaignKind | 'all'; label: string }[] = [
 export function Give({ notify }: { notify: Notify }) {
   const [filter, setFilter] = useState<CampaignKind | 'all'>('all');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const [donations, setDonations] = useStored<Donation[]>('pc-donations', []);
 
   const shown = useMemo(
@@ -137,6 +139,59 @@ export function Give({ notify }: { notify: Notify }) {
                 hint="Recurring pledges"
               />
             </div>
+          </div>
+        )}
+
+        {/* What you have actually given — the running totals above say how much,
+            this says to whom, when, and what it went towards. */}
+        {donations.length > 0 && (
+          <div className="paper-card p-5 md:p-6" data-testid="panel-giving-history">
+            <button
+              onClick={() => setShowHistory((v) => !v)}
+              aria-expanded={showHistory}
+              className="w-full flex items-center justify-between gap-3 text-left"
+              data-testid="button-toggle-history"
+            >
+              <span>
+                <span className="eyebrow block">Your record</span>
+                <span className="serif text-2xl block mt-1">
+                  {donations.length} {donations.length === 1 ? 'contribution' : 'contributions'}
+                </span>
+              </span>
+              <ChevronDown size={18} className={`shrink-0 text-muted-foreground transition-transform ${showHistory ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showHistory && (
+              <ul className="mt-5 space-y-3 reveal" data-testid="list-giving-history">
+                {donations.map((donation) => {
+                  const campaign = CAMPAIGNS.find((c) => c.id === donation.campaignId);
+                  if (!campaign) return null;
+                  const covered = nextItem(campaign.breakdown, campaign.raised);
+                  return (
+                    <li
+                      key={`${donation.campaignId}-${donation.at}`}
+                      className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-3 border-b border-border last:border-0 last:pb-0"
+                      data-testid={`history-${donation.campaignId}-${donation.at}`}
+                    >
+                      <strong className="serif text-xl">{money(donation.amount)}</strong>
+                      {donation.recurring && <span className="tag">monthly</span>}
+                      <span className="text-sm">
+                        to <span className="font-bold">{campaign.title}</span>
+                      </span>
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {new Date(donation.at).toLocaleDateString(undefined, {
+                          day: 'numeric', month: 'short', year: 'numeric',
+                        })}
+                      </span>
+                      <span className="w-full text-xs text-muted-foreground">
+                        {campaign.beneficiary}
+                        {covered ? ` · went towards ${covered.label.toLowerCase()}` : ' · the goal was already met'}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
         )}
 

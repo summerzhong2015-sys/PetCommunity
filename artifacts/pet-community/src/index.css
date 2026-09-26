@@ -331,6 +331,25 @@
 /* Sections have their own palettes. Easing the change keeps a tab switch from
    flashing a new colour at you; the tokens themselves are set in App.tsx. */
 .theme-surface { transition: background-color 700ms ease; }
+/* A poster is meant to end up on paper. When it is printed, it gets the page
+   and everything else gets out of the way. */
+@media print {
+  body { background: #fff; }
+  .app-shell > aside,
+  .app-shell nav,
+  header,
+  .no-print { display: none !important; }
+  .poster {
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    width: 100%;
+    max-width: none;
+    break-inside: avoid;
+  }
+  .poster-only-wrap { position: static !important; }
+}
+
 /* ---- Reading -------------------------------------------------------------
  * Long text was set the same as short text: 14–16px sans, running the full
  * width of a card, which on a wide screen is well over a hundred characters a

@@ -28,6 +28,8 @@ export type Campaign = {
   updates: CampaignUpdate[];
   /** Portrait for campaigns about a specific animal. */
   portrait?: PortraitSpec;
+  /** The shelter this raises money for, where it is one of ours. */
+  shelterId?: string;
   /** A photograph of the animal a campaign is for, where there is one. */
   photo?: string;
   /**
@@ -51,6 +53,7 @@ export const CAMPAIGN_LABEL: Record<CampaignKind, string> = {
 export const CAMPAIGNS: Campaign[] = [
   {
     id: 'c1',
+    shelterId: 'east-ridge-vet',
     overflow: 'the same fund — it reopens for the next animal brought in with nobody to bill',
     title: 'The stray fund at East Ridge',
     beneficiary: 'East Ridge Animal Hospital',
@@ -109,6 +112,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c3',
+    shelterId: 'maple-ridge',
     overflow: 'Nutmeg’s aftercare and physiotherapy, then the next shelter animal waiting on surgery',
     photo: '1637424864218-b040b739ac44',
     title: 'Nutmeg needs a hip',
@@ -140,6 +144,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c4',
+    shelterId: 'maple-ridge',
     overflow: 'the shelter’s day-to-day care fund — bedding, food and heat through the winter',
     title: 'Heat the kennels before November',
     beneficiary: 'Maple Ridge Animal Shelter',
@@ -165,6 +170,7 @@ export const CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c5',
+    shelterId: 'willow-cat',
     overflow: 'the rescue’s foster fund, which pays for litter, food and vet visits in foster homes',
     title: 'Neuter the garden colony',
     beneficiary: 'Willow Gate Cat Rescue',

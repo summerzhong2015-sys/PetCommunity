@@ -90,6 +90,86 @@ export function ProgressBar({ pct, tone = 'accent' }: { pct: number; tone?: 'acc
 }
 
 /** Re-renders on an interval so elapsed-time labels stay honest while a page sits open. */
+/**
+ * Walks a displayed number from where it was to where it now is.
+ *
+ * A total that jumps is easy to miss — people look away for the half second it
+ * changes and cannot tell whether their contribution registered. Counting up
+ * puts the change where the eye already is. Honours reduced-motion by snapping.
+ */
+export function useCountUp(target: number, duration = 850): number {
+  const [shown, setShown] = useState(target);
+  const from = useRef(target);
+  const latest = useRef(target);
+
+  useEffect(() => {
+    const start = from.current;
+    if (start === target) return;
+
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) {
+      from.current = target;
+      latest.current = target;
+      setShown(target);
+      return;
+    }
+
+    let frame = 0;
+    const began = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - began) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const value = start + (target - start) * eased;
+      latest.current = value;
+      setShown(value);
+      if (t < 1) frame = requestAnimationFrame(step);
+      else from.current = target;
+    };
+    frame = requestAnimationFrame(step);
+
+    // Leaving mid-count: resume from where the number actually is, not from the
+    // target, so a second contribution still animates.
+    return () => {
+      cancelAnimationFrame(frame);
+      from.current = latest.current;
+    };
+  }, [target, duration]);
+
+  return shown;
+}
+
+/**
+ * A number that counts to its new value and gives a short nudge when it lands,
+ * so a change is felt as well as read.
+ */
+export function CountUp({
+  value,
+  format,
+  className = '',
+}: {
+  value: number;
+  format: (n: number) => string;
+  className?: string;
+}) {
+  const shown = useCountUp(value);
+  const [nudge, setNudge] = useState(false);
+  const previous = useRef(value);
+
+  useEffect(() => {
+    if (previous.current === value) return;
+    previous.current = value;
+    setNudge(true);
+    const timer = setTimeout(() => setNudge(false), 640);
+    return () => clearTimeout(timer);
+  }, [value]);
+
+  return (
+    <span className={`${className}${nudge ? ' value-bump' : ''}`} data-counting={nudge || undefined}>
+      {format(shown)}
+    </span>
+  );
+}
+
 export function useTicker(intervalMs = 15000): number {
   const [tick, setTick] = useState(0);
   useEffect(() => {

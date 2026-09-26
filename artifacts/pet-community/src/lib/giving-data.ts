@@ -202,5 +202,6 @@ export function pctOf(campaign: Campaign): number {
 }
 
 export function money(amount: number): string {
-  return `$${amount.toLocaleString('en-US')}`;
+  // Rounded because a counting-up total passes through fractions on its way.
+  return `$${Math.round(amount).toLocaleString('en-US')}`;
 }

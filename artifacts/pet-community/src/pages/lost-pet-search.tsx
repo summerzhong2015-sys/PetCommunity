@@ -189,7 +189,9 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
           <div className="paper-card p-5 flex items-start gap-3" data-testid="banner-reunited">
             <CheckCircle2 size={20} className="text-primary shrink-0 mt-0.5" />
             <p className="text-sm">
-              <strong>{item.petName} is home.</strong> This map is kept up so neighbours can see how the search ran.
+              <strong>{item.petName} is home.</strong>{' '}
+              {item.foundNote ? `${item.foundNote} ` : ''}
+              This map is kept up so neighbours can see how the search ran.
             </p>
           </div>
         )}

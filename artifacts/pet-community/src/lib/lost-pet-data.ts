@@ -32,6 +32,10 @@ export type LostCase = {
   ownerInitials: string;
   contact: string;
   status: 'Active' | 'Reunited';
+  /** Set when someone marks the animal found; drives the reunited section. */
+  foundAt?: number;
+  /** What the person said when they closed the case. */
+  foundNote?: string;
   sightings: Sighting[];
   weather: Weather;
   /** A likeness, so an alert reads as a missing animal rather than a form. */
@@ -45,6 +49,7 @@ export type LostCase = {
 const LOADED_AT = Date.now();
 
 const USER_CASES_KEY = 'pc-user-cases';
+const REUNIONS_KEY = 'pc-reunions';
 
 export function minutesMissing(item: LostCase): number {
   if (item.reportedAt) return (Date.now() - item.reportedAt) / 60000;
@@ -187,8 +192,52 @@ export function saveUserCases(cases: LostCase[]): void {
   }
 }
 
+export type Reunion = { at: number; note: string };
+
+/**
+ * Cases closed in this browser, kept apart from the case list itself.
+ *
+ * The seeded alerts are a module constant, so a reunion cannot be written back
+ * into them. Holding reunions in their own small map means a found animal can
+ * leave the board whether it was reported here or came with the demo, and the
+ * decision can still be undone.
+ */
+export function loadReunions(): Record<string, Reunion> {
+  try {
+    const raw = localStorage.getItem(REUNIONS_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return parsed as Record<string, Reunion>;
+  } catch {
+    return {};
+  }
+}
+
+export function saveReunions(reunions: Record<string, Reunion>): void {
+  try {
+    localStorage.setItem(REUNIONS_KEY, JSON.stringify(reunions));
+  } catch {
+    /* storage can be unavailable; the board still behaves for this session */
+  }
+}
+
+/** A case with any reunion recorded in this browser folded in. */
+export function withReunion(item: LostCase, reunions: Record<string, Reunion>): LostCase {
+  const reunion = reunions[item.id];
+  if (!reunion) return item;
+  return {
+    ...item,
+    status: 'Reunited',
+    foundAt: reunion.at,
+    // Trimmed here as well as at the keyboard: a blank note would render as an
+    // empty quote under the case.
+    foundNote: reunion.note?.trim() || undefined,
+  };
+}
+
 export function allCases(): LostCase[] {
-  return [...loadUserCases(), ...LOST_CASES];
+  const reunions = loadReunions();
+  return [...loadUserCases(), ...LOST_CASES].map((item) => withReunion(item, reunions));
 }
 
 export function findCase(id: string): LostCase | undefined {

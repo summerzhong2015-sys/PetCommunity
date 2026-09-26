@@ -24,7 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import { PetPortrait } from '@/components/pet-portrait';
-import { PageHeader, ProgressBar, Stat, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
+import { CountUp, PageHeader, ProgressBar, Stat, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
 import {
   CAMPAIGNS,
   CAMPAIGN_LABEL,
@@ -68,9 +68,19 @@ export function Give({ notify }: { notify: Notify }) {
   const given = donations.reduce((sum, d) => sum + d.amount, 0);
   const supported = new Set(donations.map((d) => d.campaignId)).size;
 
+  /** What this browser has put into one campaign. */
+  function yourShareOf(campaignId: string): number {
+    return donations.filter((d) => d.campaignId === campaignId).reduce((s, d) => s + d.amount, 0);
+  }
+
   /** Contributions made in this browser are added on top of the campaign's standing total. */
   function raisedFor(campaign: Campaign): number {
-    return campaign.raised + donations.filter((d) => d.campaignId === campaign.id).reduce((s, d) => s + d.amount, 0);
+    return campaign.raised + yourShareOf(campaign.id);
+  }
+
+  /** You count as a neighbour once you have given, however many times. */
+  function donorsFor(campaign: Campaign): number {
+    return campaign.donors + (yourShareOf(campaign.id) > 0 ? 1 : 0);
   }
 
   function record(campaign: Campaign, amount: number, recurring: boolean) {
@@ -109,7 +119,11 @@ export function Give({ notify }: { notify: Notify }) {
         {donations.length > 0 && (
           <div className="paper-card p-5 md:p-6" data-testid="panel-your-giving">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-5">
-              <Stat label="You have given" value={money(given)} hint="Across this browser" />
+              <Stat
+                label="You have given"
+                value={<CountUp value={given} format={money} />}
+                hint="Across this browser"
+              />
               <Stat label="Campaigns" value={supported} hint="Supported so far" />
               <Stat
                 label="Most recent"
@@ -146,6 +160,7 @@ export function Give({ notify }: { notify: Notify }) {
           {shown.map((campaign, i) => {
             const Icon = KIND_ICON[campaign.kind];
             const raised = raisedFor(campaign);
+            const yours = yourShareOf(campaign.id);
             const pct = Math.min(100, (raised / campaign.goal) * 100);
             return (
               <article
@@ -180,15 +195,20 @@ export function Give({ notify }: { notify: Notify }) {
                 <div className="mt-5">
                   <div className="flex items-baseline justify-between mb-2">
                     <p className="text-sm">
-                      <strong className="serif text-xl">{money(raised)}</strong>
+                      <CountUp value={raised} format={money} className="serif text-xl font-bold" />
                       <span className="text-muted-foreground"> of {money(campaign.goal)}</span>
                     </p>
-                    <span className="mono text-xs text-muted-foreground">{Math.round(pct)}%</span>
+                    <CountUp
+                      value={pct}
+                      format={(n) => `${Math.round(n)}%`}
+                      className="mono text-xs text-muted-foreground"
+                    />
                   </div>
                   <ProgressBar pct={pct} />
                   <div className="flex items-center justify-between mt-2.5 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1.5">
-                      <Users size={12} /> {campaign.donors} neighbours
+                      <Users size={12} />
+                      <CountUp value={donorsFor(campaign)} format={(n) => `${Math.round(n)}`} /> neighbours
                     </span>
                     {campaign.daysLeft !== null && (
                       <span className="inline-flex items-center gap-1.5">
@@ -197,6 +217,12 @@ export function Give({ notify }: { notify: Notify }) {
                     )}
                   </div>
                 </div>
+
+                {yours > 0 && (
+                  <p className="text-xs mt-2.5 text-primary" data-testid={`your-share-${campaign.id}`}>
+                    {money(yours)} of that is from you.
+                  </p>
+                )}
 
                 {campaign.matchNote && (
                   <p className="text-xs mt-4 inline-flex items-start gap-1.5 text-primary">
@@ -220,6 +246,8 @@ export function Give({ notify }: { notify: Notify }) {
           <CampaignDetail
             campaign={open}
             raised={raisedFor(open)}
+            donors={donorsFor(open)}
+            yours={yourShareOf(open.id)}
             onClose={() => setOpenId(null)}
             onGive={(amount, recurring) => record(open, amount, recurring)}
           />
@@ -244,11 +272,15 @@ export function Give({ notify }: { notify: Notify }) {
 function CampaignDetail({
   campaign,
   raised,
+  donors,
+  yours,
   onClose,
   onGive,
 }: {
   campaign: Campaign;
   raised: number;
+  donors: number;
+  yours: number;
   onClose: () => void;
   onGive: (amount: number, recurring: boolean) => void;
 }) {
@@ -320,15 +352,31 @@ function CampaignDetail({
           <div className="rounded-[1rem] border border-border p-5">
             <div className="flex items-baseline justify-between mb-2">
               <p className="text-sm">
-                <strong className="serif text-2xl">{money(raised)}</strong>
+                <CountUp value={raised} format={money} className="serif text-2xl font-bold" />
                 <span className="text-muted-foreground"> of {money(campaign.goal)}</span>
               </p>
-              <span className="mono text-xs text-muted-foreground">{Math.round(pct)}%</span>
+              <CountUp
+                value={pct}
+                format={(n) => `${Math.round(n)}%`}
+                className="mono text-xs text-muted-foreground"
+              />
             </div>
             <ProgressBar pct={pct} />
             <p className="text-xs text-muted-foreground mt-2.5">
-              {remaining > 0 ? `${money(remaining)} still needed` : 'Fully funded — thank you'} · {campaign.donors} neighbours so far
+              {remaining > 0 ? (
+                <>
+                  <CountUp value={remaining} format={money} /> still needed
+                </>
+              ) : (
+                'Fully funded — thank you'
+              )}{' '}
+              · <CountUp value={donors} format={(n) => `${Math.round(n)}`} /> neighbours so far
             </p>
+            {yours > 0 && (
+              <p className="text-xs text-primary mt-1.5" data-testid={`panel-your-share-${campaign.id}`}>
+                {money(yours)} of that came from you.
+              </p>
+            )}
 
             {receipt ? (
               <div className="mt-5 pt-5 border-t border-border" data-testid={`receipt-${campaign.id}`}>

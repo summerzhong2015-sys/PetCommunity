@@ -9,14 +9,18 @@ import {
   AlertTriangle,
   BellRing,
   CheckCircle2,
+  ChevronDown,
+  Heart,
   Info,
   MapPin,
   MessageCircle,
   Radar,
+  RotateCcw,
   ShieldCheck,
+  Undo2,
   X,
 } from 'lucide-react';
-import { EmptyState, PageHeader, useTicker, type Notify } from '@/components/page-bits';
+import { CountUp, EmptyState, PageHeader, useTicker, type Notify } from '@/components/page-bits';
 import {
   COAT_PRESETS,
   DEFAULT_PORTRAIT,
@@ -28,10 +32,14 @@ import {
 } from '@/components/pet-portrait';
 import {
   LOST_CASES,
+  loadReunions,
   loadUserCases,
   minutesMissing,
+  saveReunions,
   saveUserCases,
+  withReunion,
   type LostCase,
+  type Reunion,
 } from '@/lib/lost-pet-data';
 import { formatAge, type BuildSize, type Species, type Temperament } from '@/lib/lost-pet-model';
 import { LANDMARKS } from '@/lib/neighborhood-map';
@@ -65,16 +73,43 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
   });
   const [portrait, setPortrait] = useState<PortraitSpec>(prefill?.portrait ?? DEFAULT_PORTRAIT);
 
-  const cases = useMemo(() => {
-    const all = [...userCases, ...LOST_CASES];
-    return all.sort((a, b) => {
-      if (a.status !== b.status) return a.status === 'Active' ? -1 : 1;
-      return minutesMissing(a) - minutesMissing(b);
-    });
-    // `tick` keeps the "missing for" labels current.
-  }, [userCases, tick]);
+  const [reunions, setReunions] = useState<Record<string, Reunion>>(() => loadReunions());
+  // Which card is showing its "is this right?" step, and the note being typed.
+  const [closing, setClosing] = useState<string | null>(null);
+  const [closingNote, setClosingNote] = useState('');
+  const [showReunited, setShowReunited] = useState(false);
 
-  const activeCount = cases.filter((c) => c.status === 'Active').length;
+  const cases = useMemo(() => {
+    const all = [...userCases, ...LOST_CASES].map((item) => withReunion(item, reunions));
+    return all.sort((a, b) => minutesMissing(a) - minutesMissing(b));
+    // `tick` keeps the "missing for" labels current.
+  }, [userCases, reunions, tick]);
+
+  const active = cases.filter((c) => c.status === 'Active');
+  const reunited = cases.filter((c) => c.status === 'Reunited');
+  const activeCount = active.length;
+
+  /** Closes a case: it leaves the board and joins the reunited list. */
+  function markFound(item: LostCase, note: string) {
+    const next = { ...reunions, [item.id]: { at: Date.now(), note: note.trim() } };
+    setReunions(next);
+    saveReunions(next);
+    setClosing(null);
+    setClosingNote('');
+    notify({
+      tone: 'success',
+      text: `${item.petName} is home. The alert has come off the board — you will find it under reunited.`,
+    });
+  }
+
+  /** A mis-tap should not lose an active search. */
+  function reopen(item: LostCase) {
+    const next = { ...reunions };
+    delete next[item.id];
+    setReunions(next);
+    saveReunions(next);
+    notify({ tone: 'info', text: `${item.petName}'s alert is back on the board.` });
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -422,10 +457,12 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
             <p className="eyebrow">Open now</p>
             <h2 className="serif text-3xl mt-1">Alerts nearby</h2>
           </div>
-          <span className="tag bg-destructive/10 text-destructive">{activeCount} active</span>
+          <span className="tag bg-destructive/10 text-destructive">
+            <CountUp value={activeCount} format={(n) => `${Math.round(n)}`} /> active
+          </span>
         </div>
 
-        {cases.length === 0 ? (
+        {active.length === 0 ? (
           <EmptyState
             title="No active alerts"
             copy="That is good news. This space will stay ready if a neighbour needs a quick hand."
@@ -433,63 +470,225 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
           />
         ) : (
           <div className="space-y-4">
-            {cases.map((item, i) => (
-              <article
+            {active.map((item, i) => (
+              <AlertCard
                 key={item.id}
-                className={`paper-card p-5 md:p-6 border-l-4 ${item.status === 'Active' ? 'border-l-destructive' : 'border-l-primary'} reveal reveal-delay-${Math.min(i + 1, 3)}`}
-                data-testid={`card-lost-alert-${item.id}`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex gap-3">
-                    <span className="relative shrink-0">
-                      <PetPortrait spec={item.portrait} className="w-14 h-14" rounded={22} />
-                      <span
-                        className={`absolute -bottom-1 -right-1 grid place-items-center w-6 h-6 rounded-full border-2 border-card ${item.status === 'Active' ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'}`}
-                      >
-                        {item.status === 'Active' ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
-                      </span>
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="serif text-2xl">{item.petName}</h3>
-                        <span className="tag">{item.status}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {item.breed} <span className="mx-1">·</span> missing {formatAge(minutesMissing(item)).replace(' ago', '')}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="tag flex gap-1">
-                    <MapPin size={12} /> close by
-                  </span>
-                </div>
-
-                <p className="font-bold text-sm mt-5">Last seen at {item.lastSeenPlace}</p>
-                <p className="text-sm leading-relaxed mt-1">{item.description}</p>
-
-                <div className="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-border">
-                  <Link
-                    href={`/lost-pets/${item.id}`}
-                    className={`action-button ${item.status === 'Active' ? 'button-primary' : 'button-quiet'}`}
-                    data-testid={`link-search-map-${item.id}`}
-                  >
-                    <Radar size={16} /> {item.status === 'Active' ? 'Open the search map' : 'See how the search ran'}
-                  </Link>
-                  {item.sightings.length > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      {item.sightings.length} sighting{item.sightings.length === 1 ? '' : 's'} reported
-                    </span>
-                  )}
-                  <span className="text-xs text-muted-foreground flex items-center gap-1 ml-auto">
-                    <MessageCircle size={13} />
-                    {item.contact}
-                  </span>
-                </div>
-              </article>
+                item={item}
+                index={i}
+                closing={closing === item.id}
+                note={closingNote}
+                onNoteChange={setClosingNote}
+                onStartClosing={() => {
+                  setClosing(item.id);
+                  setClosingNote('');
+                }}
+                onCancelClosing={() => {
+                  setClosing(null);
+                  setClosingNote('');
+                }}
+                onConfirmFound={() => markFound(item, closingNote)}
+              />
             ))}
+          </div>
+        )}
+
+        {/* Reunited animals come off the board, but their search is still here to read. */}
+        {reunited.length > 0 && (
+          <div className="mt-8">
+            <button
+              onClick={() => setShowReunited((open) => !open)}
+              aria-expanded={showReunited}
+              className="w-full paper-card p-4 flex items-center gap-3 text-left hover-elevate"
+              data-testid="button-toggle-reunited"
+            >
+              <span className="grid place-items-center w-9 h-9 rounded-xl bg-primary/10 text-primary shrink-0">
+                <Heart size={17} />
+              </span>
+              <span className="min-w-0">
+                <span className="block font-bold text-sm">
+                  {reunited.length} home safe
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {reunited
+                    .slice(0, 3)
+                    .map((c) => c.petName)
+                    .join(', ')}
+                  {reunited.length > 3 ? ` and ${reunited.length - 3} more` : ''}
+                </span>
+              </span>
+              <ChevronDown
+                size={18}
+                className={`ml-auto shrink-0 text-muted-foreground transition-transform ${showReunited ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {showReunited && (
+              <div className="space-y-4 mt-4" data-testid="list-reunited">
+                {reunited.map((item, i) => (
+                  <AlertCard
+                    key={item.id}
+                    item={item}
+                    index={i}
+                    closing={false}
+                    note=""
+                    onNoteChange={() => {}}
+                    onStartClosing={() => {}}
+                    onCancelClosing={() => {}}
+                    onConfirmFound={() => {}}
+                    onReopen={reunions[item.id] ? () => reopen(item) : undefined}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </section>
     </main>
+  );
+}
+
+/**
+ * One alert. Active cases carry a two-step "mark as found" so a mis-tap cannot
+ * quietly end someone's search; reunited ones read as a closed story and, when
+ * the reunion was recorded here, can be reopened.
+ */
+function AlertCard({
+  item,
+  index,
+  closing,
+  note,
+  onNoteChange,
+  onStartClosing,
+  onCancelClosing,
+  onConfirmFound,
+  onReopen,
+}: {
+  item: LostCase;
+  index: number;
+  closing: boolean;
+  note: string;
+  onNoteChange: (value: string) => void;
+  onStartClosing: () => void;
+  onCancelClosing: () => void;
+  onConfirmFound: () => void;
+  onReopen?: () => void;
+}) {
+  const isActive = item.status === 'Active';
+  return (
+    <article
+      className={`paper-card p-5 md:p-6 border-l-4 ${isActive ? 'border-l-destructive' : 'border-l-primary'} reveal reveal-delay-${Math.min(index + 1, 3)}`}
+      data-testid={`card-lost-alert-${item.id}`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex gap-3">
+          <span className="relative shrink-0">
+            <PetPortrait spec={item.portrait} className="w-14 h-14" rounded={22} />
+            <span
+              className={`absolute -bottom-1 -right-1 grid place-items-center w-6 h-6 rounded-full border-2 border-card ${isActive ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'}`}
+            >
+              {isActive ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
+            </span>
+          </span>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="serif text-2xl">{item.petName}</h3>
+              <span className="tag">{isActive ? 'Active' : 'Home safe'}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {item.breed}
+              <span className="mx-1">·</span>
+              {isActive
+                ? `missing ${formatAge(minutesMissing(item)).replace(' ago', '')}`
+                : item.foundAt
+                  ? `found ${formatAge((Date.now() - item.foundAt) / 60000)}`
+                  : 'back home'}
+            </p>
+          </div>
+        </div>
+        {isActive && (
+          <span className="tag flex gap-1">
+            <MapPin size={12} /> close by
+          </span>
+        )}
+      </div>
+
+      <p className="font-bold text-sm mt-5">Last seen at {item.lastSeenPlace}</p>
+      <p className="text-sm leading-relaxed mt-1">{item.description}</p>
+
+      {item.foundNote && (
+        <p className="text-sm leading-relaxed mt-3 pl-3 border-l-2 border-primary/40 text-muted-foreground">
+          {item.foundNote}
+        </p>
+      )}
+
+      {closing ? (
+        <div className="mt-5 pt-4 border-t border-border" data-testid={`confirm-found-${item.id}`}>
+          <p className="font-bold text-sm">{item.petName} has been found?</p>
+          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+            The alert comes off the board straight away. Neighbours who were looking will see the search is over.
+          </p>
+          <input
+            className="field mt-3"
+            value={note}
+            onChange={(e) => onNoteChange(e.target.value)}
+            placeholder="Where were they found? (optional, but people like to know)"
+            aria-label={`How ${item.petName} was found`}
+            data-testid={`input-found-note-${item.id}`}
+          />
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button
+              onClick={onConfirmFound}
+              className="action-button button-primary"
+              data-testid={`button-confirm-found-${item.id}`}
+            >
+              <CheckCircle2 size={16} /> Yes, {item.petName} is home
+            </button>
+            <button
+              onClick={onCancelClosing}
+              className="action-button button-quiet"
+              data-testid={`button-cancel-found-${item.id}`}
+            >
+              <Undo2 size={16} /> Not yet
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-border">
+          <Link
+            href={`/lost-pets/${item.id}`}
+            className={`action-button ${isActive ? 'button-primary' : 'button-quiet'}`}
+            data-testid={`link-search-map-${item.id}`}
+          >
+            <Radar size={16} /> {isActive ? 'Open the search map' : 'See how the search ran'}
+          </Link>
+
+          {isActive && (
+            <button
+              onClick={onStartClosing}
+              className="action-button button-quiet"
+              data-testid={`button-mark-found-${item.id}`}
+            >
+              <CheckCircle2 size={16} /> Mark as found
+            </button>
+          )}
+
+          {!isActive && onReopen && (
+            <button onClick={onReopen} className="action-button button-quiet" data-testid={`button-reopen-${item.id}`}>
+              <RotateCcw size={16} /> Still missing
+            </button>
+          )}
+
+          {item.sightings.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {item.sightings.length} sighting{item.sightings.length === 1 ? '' : 's'} reported
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground flex items-center gap-1 ml-auto">
+            <MessageCircle size={13} />
+            {item.contact}
+          </span>
+        </div>
+      )}
+    </article>
   );
 }

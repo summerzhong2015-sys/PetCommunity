@@ -92,36 +92,36 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
   return (
     <div className="app-shell md:flex">
       <aside className="hidden md:flex md:w-64 md:flex-col md:shrink-0 bg-sidebar text-sidebar-foreground p-5">
-        <Link href="/" className="flex items-center gap-3 px-2 py-3 mb-9" data-testid="link-brand">
+        <Link href="/" className="flex items-center gap-3 px-2 py-3 mb-5" data-testid="link-brand">
           <span className="grid place-items-center w-10 h-10 rounded-2xl bg-sidebar-primary text-sidebar-primary-foreground"><Dog size={22} /></span>
           <span><strong className="serif text-xl tracking-tight">PetCommunity</strong><span className="block mono text-[9px] uppercase tracking-[.16em] opacity-55">Your local circle</span></span>
         </Link>
+        {/* Your own picture belongs in front of you whether or not you signed in:
+            the profile lives in this browser, so a set-up profile counts. */}
+        {showProfileCard ? <div className="rounded-2xl bg-sidebar-accent p-3 mb-7 flex items-center gap-3">
+          <Link href="/profile" className="group flex items-center gap-3 min-w-0 flex-1" aria-label="See and edit your pet profile" title="See and edit your pet profile" data-testid="link-sidebar-profile">
+            <span className="relative shrink-0 transition-transform group-hover:-translate-y-px">
+              <PetPortrait spec={profile.portrait} className="w-11 h-11" rounded={20} />
+              <span className="absolute -bottom-1 -right-1 grid place-items-center w-[18px] h-[18px] rounded-full bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
+                <Pencil size={9} strokeWidth={2.6} />
+              </span>
+            </span>
+            <span className="min-w-0">
+              <strong className="block text-sm truncate">{profile.username}</strong>
+              <span className="block text-[11px] text-sidebar-foreground/60 truncate">{profile.petName} · {profile.petType}</span>
+              <span className="block text-[10px] font-bold text-sidebar-primary mt-0.5">Edit profile</span>
+            </span>
+          </Link>
+          {isSignedIn && <button type="button" onClick={() => signOut({ redirectUrl: basePath || '/' })} className="text-sidebar-foreground/60 hover:text-sidebar-foreground p-1.5 rounded-lg self-start" aria-label="Sign out" data-testid="button-sign-out"><ArrowRight size={15} className="rotate-180" /></button>}
+        </div> : <Link href={authEnabled ? '/sign-in' : '/profile'} className="rounded-2xl bg-sidebar-accent p-3 mb-7 flex items-center gap-3 hover:bg-sidebar-accent/80" data-testid="link-sidebar-sign-in">
+          <span className="grid place-items-center w-9 h-9 rounded-xl bg-sidebar-primary/15 text-sidebar-primary"><Dog size={18} /></span>
+          <span><strong className="block text-sm">Set up your pet profile</strong><span className="block text-[11px] text-sidebar-foreground/60 mt-0.5">{authEnabled ? 'Sign in to get started' : 'Saved in this browser'}</span></span>
+        </Link>}
         <p className="eyebrow text-sidebar-foreground/50 px-3 mb-3">Find your people</p>
         <nav aria-label="Main navigation" className="space-y-1">
           {navItems.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`nav-link ${active(href) ? 'active' : ''}`} data-testid={`link-nav-${label.toLowerCase().replace(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{label}</span>{label === 'Lost pets' && <span className="ml-auto w-2 h-2 rounded-full bg-sidebar-primary" />}</Link>)}
         </nav>
         <div className="mt-auto">
-          {/* Your own picture belongs in front of you whether or not you signed in:
-              the profile lives in this browser, so a set-up profile counts. */}
-          {showProfileCard ? <div className="rounded-2xl bg-sidebar-accent p-3 mb-3 flex items-center gap-3">
-            <Link href="/profile" className="group flex items-center gap-3 min-w-0 flex-1" aria-label="See and edit your pet profile" title="See and edit your pet profile" data-testid="link-sidebar-profile">
-              <span className="relative shrink-0 transition-transform group-hover:-translate-y-px">
-                <PetPortrait spec={profile.portrait} className="w-11 h-11" rounded={20} />
-                <span className="absolute -bottom-1 -right-1 grid place-items-center w-[18px] h-[18px] rounded-full bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-                  <Pencil size={9} strokeWidth={2.6} />
-                </span>
-              </span>
-              <span className="min-w-0">
-                <strong className="block text-sm truncate">{profile.username}</strong>
-                <span className="block text-[11px] text-sidebar-foreground/60 truncate">{profile.petName} · {profile.petType}</span>
-                <span className="block text-[10px] font-bold text-sidebar-primary mt-0.5">Edit profile</span>
-              </span>
-            </Link>
-            {isSignedIn && <button type="button" onClick={() => signOut({ redirectUrl: basePath || '/' })} className="text-sidebar-foreground/60 hover:text-sidebar-foreground p-1.5 rounded-lg self-start" aria-label="Sign out" data-testid="button-sign-out"><ArrowRight size={15} className="rotate-180" /></button>}
-          </div> : <Link href={authEnabled ? '/sign-in' : '/profile'} className="rounded-2xl bg-sidebar-accent p-3 mb-3 flex items-center gap-3 hover:bg-sidebar-accent/80" data-testid="link-sidebar-sign-in">
-            <span className="grid place-items-center w-9 h-9 rounded-xl bg-sidebar-primary/15 text-sidebar-primary"><Dog size={18} /></span>
-            <span><strong className="block text-sm">Set up your pet profile</strong><span className="block text-[11px] text-sidebar-foreground/60 mt-0.5">{authEnabled ? 'Sign in to get started' : 'Saved in this browser'}</span></span>
-          </Link>}
           <div className="rounded-2xl bg-sidebar-accent p-4">
           <ShieldCheck size={19} className="text-sidebar-primary mb-3" />
           <p className="font-bold text-sm">Privacy, by default.</p>

@@ -70,6 +70,10 @@ export function PetPhoto({
     >
       {showDrawing && portrait && <PetPortrait spec={portrait} className="w-full h-full" rounded={rounded} />}
       {showDrawing && !portrait && fallback}
+      {/* While the photograph is in flight the space would otherwise be an
+          empty block, which reads as something broken rather than something
+          arriving. A shimmer says "coming". */}
+      {showPhoto && !loaded && <span className="absolute inset-0 photo-loading" />}
       {showPhoto && (
         <img
           ref={img}

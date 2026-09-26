@@ -143,21 +143,19 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
       </aside>
       <div
         className="flex-1 min-w-0 pb-20 md:pb-0 relative theme-surface"
-        style={{ backgroundColor: `hsl(${theme.tint})` }}
+        style={{
+          backgroundColor: `hsl(${theme.tint})`,
+          // The section wash used to be its own absolutely positioned, animated
+          // layer spanning the whole scroll height. A composited layer that
+          // large, sitting over everything, left parts of the page unpainted
+          // until something forced a repaint — which is why text appeared only
+          // while the pointer was over it. It is a plain background now, and
+          // fixed so it stays viewport-sized however long the page gets.
+          backgroundImage: backgroundFor(theme),
+          backgroundAttachment: 'fixed',
+        }}
       >
-        {/* The wash and the sky are decoration and must stay behind the page.
-            A positioned element paints above a static one whatever the source
-            order, so both need an explicit z-index and the content needs one
-            above them. Without it they covered the page, and a card only
-            reappeared while hovered — because the hover transform lifted it
-            into its own stacking context. */}
-        <div
-          key={theme.name}
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0 theme-wash"
-          style={{ backgroundImage: backgroundFor(theme) }}
-          data-testid="theme-wash"
-        />
+        {/* Decoration, pinned behind the page content below. */}
         <Sky />
         <header className="sticky top-0 z-30 md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-background/90 backdrop-blur">
           <Link href="/" className="flex items-center gap-2" data-testid="link-mobile-brand"><span className="grid place-items-center w-8 h-8 rounded-xl bg-primary text-primary-foreground"><Dog size={17} /></span><strong className="serif text-lg">PetCommunity</strong></Link>

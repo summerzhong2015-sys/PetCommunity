@@ -329,11 +329,15 @@
 /* Sections have their own palettes. Easing the change keeps a tab switch from
    flashing a new colour at you; the tokens themselves are set in App.tsx. */
 .theme-surface { transition: background-color 700ms ease; }
-@keyframes theme-wash-in { from { opacity: 0; } to { opacity: 1; } }
-.theme-wash { animation: theme-wash-in 700ms ease both; }
+/* A photograph on its way, rather than a hole in the page. */
+@keyframes photo-loading { 0%, 100% { opacity: .5; } 50% { opacity: .95; } }
+.photo-loading {
+  background: linear-gradient(105deg, hsl(var(--secondary)) 0%, hsl(var(--muted)) 45%, hsl(var(--secondary)) 90%);
+  animation: photo-loading 1.6s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   .theme-surface { transition: none; }
-  .theme-wash { animation: none; }
+  .photo-loading { animation: none; }
 }
 
 /* The scene behind the app: drifting clouds and a slow twinkle. Long loops on

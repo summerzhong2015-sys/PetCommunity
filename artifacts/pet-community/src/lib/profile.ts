@@ -65,3 +65,23 @@ export function normalizeProfile(value: Partial<PetProfile> | null | undefined):
 export function isProfileSet(profile: PetProfile): boolean {
   return profile.username !== defaultProfile.username && profile.petName !== defaultProfile.petName;
 }
+
+/**
+ * Whether anything has been made their own yet.
+ *
+ * Looser than `isProfileSet` on purpose. That one guards prefilling a lost-pet
+ * report, where a placeholder name would be worse than a blank. This one decides
+ * whether to put their picture in the sidebar, and one changed field — a name,
+ * a breed, a coat colour — is reason enough to show it.
+ */
+export function isProfileStarted(profile: PetProfile): boolean {
+  return (
+    profile.username !== defaultProfile.username ||
+    profile.petName !== defaultProfile.petName ||
+    profile.breed.trim() !== '' ||
+    profile.age.trim() !== '' ||
+    profile.bio.trim() !== '' ||
+    profile.petType !== defaultProfile.petType ||
+    JSON.stringify(profile.portrait) !== JSON.stringify(defaultProfile.portrait)
+  );
+}

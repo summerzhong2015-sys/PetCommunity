@@ -9,7 +9,7 @@
  * Run with:  pnpm --filter @workspace/pet-community run test:profile
  */
 
-import { defaultProfile, isProfileSet, normalizeProfile, NEIGHBOURHOODS } from './profile.ts';
+import { defaultProfile, isProfileSet, isProfileStarted, normalizeProfile, NEIGHBOURHOODS } from './profile.ts';
 
 let pass = 0, fail = 0;
 const out: string[] = [];
@@ -95,6 +95,30 @@ function complete(p: ReturnType<typeof normalizeProfile>): boolean {
 {
   const once = normalizeProfile({ username: 'A', petName: 'B', petType: 'cat' });
   check('normalising is idempotent', JSON.stringify(normalizeProfile(once)) === JSON.stringify(once));
+}
+
+// Whether to put their picture in the sidebar. Looser than isProfileSet: one
+// personalised field is enough, because the alternative is hiding their own
+// portrait from them.
+{
+  check('an untouched profile has not started', !isProfileStarted(defaultProfile));
+  check('a changed pet name starts it', isProfileStarted({ ...defaultProfile, petName: 'Pip' }));
+  check('a changed username starts it', isProfileStarted({ ...defaultProfile, username: 'Summer' }));
+  check('a breed on its own starts it', isProfileStarted({ ...defaultProfile, breed: 'Terrier mix' }));
+  check('an age on its own starts it', isProfileStarted({ ...defaultProfile, age: '3 years' }));
+  check('a bio on its own starts it', isProfileStarted({ ...defaultProfile, bio: 'Loves the creek path.' }));
+  check('switching to a cat starts it', isProfileStarted({ ...defaultProfile, petType: 'cat' }));
+  check('a recoloured coat starts it', isProfileStarted({
+    ...defaultProfile,
+    portrait: { ...defaultProfile.portrait, coat: { base: '#111', shade: '#222', accent: '#333', bg: '#444' } },
+  }));
+  check('whitespace alone does not start it',
+    !isProfileStarted({ ...defaultProfile, breed: '   ', age: ' ', bio: '  ' }));
+  check('a started profile is not necessarily a set one',
+    isProfileStarted({ ...defaultProfile, breed: 'Terrier mix' }) &&
+    !isProfileSet({ ...defaultProfile, breed: 'Terrier mix' }));
+  check('a fully set profile has certainly started',
+    isProfileStarted({ ...defaultProfile, username: 'Summer', petName: 'Pip' }));
 }
 
 console.log(out.join('\n'));

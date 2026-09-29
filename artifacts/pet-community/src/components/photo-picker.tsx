@@ -1,48 +1,19 @@
 /**
- * "Use a photo from your album."
+ * "Use a photo from your album", then choose which part of it.
  *
- * Reads a file the person chose, crops it square from the centre, redraws it
- * small, and re-encodes it until it fits the storage budget. Nothing leaves
- * the browser — there is no server to send it to — and the drawn portrait is
- * still there underneath if they change their mind.
+ * Two stages on purpose. Picking a file and framing it are different decisions,
+ * and squashing them together is how you end up with a centre crop of a dog's
+ * shoulder. The cropper does the framing; this handles the file and the
+ * storage budget.
+ *
+ * Nothing leaves the browser — there is no server to send it to — and the drawn
+ * portrait is still there underneath if they change their mind.
  */
 
 import { useRef, useState } from 'react';
-import { ImagePlus, Loader2, Trash2 } from 'lucide-react';
-import {
-  ACCEPTED_TYPES, MAX_EDGE, QUALITY_STEPS,
-  centreCrop, checkFile, fitWithin, withinBudget,
-} from '@/lib/photo-upload';
-
-async function toSquareDataUrl(file: File): Promise<string> {
-  const url = URL.createObjectURL(file);
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('could not decode'));
-      img.src = url;
-    });
-
-    const crop = centreCrop(image.naturalWidth, image.naturalHeight);
-    const size = fitWithin(crop.size, crop.size, MAX_EDGE).width;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('no canvas');
-    context.drawImage(image, crop.x, crop.y, crop.size, crop.size, 0, 0, size, size);
-
-    for (const quality of QUALITY_STEPS) {
-      const encoded = canvas.toDataURL('image/jpeg', quality);
-      if (withinBudget(encoded)) return encoded;
-    }
-    throw new Error('too large even at low quality');
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
+import { ImagePlus, Trash2 } from 'lucide-react';
+import { ACCEPTED_TYPES, checkFile } from '@/lib/photo-upload';
+import { PhotoCropper } from '@/components/photo-cropper';
 
 export function PhotoPicker({
   onPicked,
@@ -56,24 +27,35 @@ export function PhotoPicker({
   onError: (message: string) => void;
 }) {
   const input = useRef<HTMLInputElement | null>(null);
-  const [busy, setBusy] = useState(false);
+  // The photo being framed, at full size. Held only until it is saved.
+  const [pending, setPending] = useState<string | null>(null);
 
-  async function handle(file: File | undefined) {
+  function handle(file: File | undefined) {
     if (!file) return;
     const verdict = checkFile(file);
     if (!verdict.ok) {
       onError(verdict.reason);
       return;
     }
-    setBusy(true);
-    try {
-      onPicked(await toSquareDataUrl(file));
-    } catch {
-      onError('That photo could not be read. A JPEG or PNG usually works.');
-    } finally {
-      setBusy(false);
-      if (input.current) input.current.value = '';
-    }
+    // Revoke any previous one first, or a few goes in a row leak the lot.
+    if (pending) URL.revokeObjectURL(pending);
+    setPending(URL.createObjectURL(file));
+    if (input.current) input.current.value = '';
+  }
+
+  function finish(dataUrl: string) {
+    if (pending) URL.revokeObjectURL(pending);
+    setPending(null);
+    onPicked(dataUrl);
+  }
+
+  function cancel() {
+    if (pending) URL.revokeObjectURL(pending);
+    setPending(null);
+  }
+
+  if (pending) {
+    return <PhotoCropper src={pending} onDone={finish} onCancel={cancel} onError={(m) => { onError(m); cancel(); }} />;
   }
 
   return (
@@ -83,18 +65,17 @@ export function PhotoPicker({
         type="file"
         accept={ACCEPTED_TYPES.join(',')}
         className="sr-only"
-        onChange={(e) => void handle(e.target.files?.[0])}
+        onChange={(e) => handle(e.target.files?.[0])}
         data-testid="input-photo-file"
       />
       <button
         type="button"
-        disabled={busy}
         onClick={() => input.current?.click()}
-        className="action-button button-quiet text-xs px-3 min-h-0 py-2 w-full disabled:opacity-60"
+        className="action-button button-quiet text-xs px-3 min-h-0 py-2 w-full"
         data-testid="button-pick-photo"
       >
-        {busy ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
-        {busy ? 'Reading…' : hasPhoto ? 'Choose another photo' : 'Use a photo'}
+        <ImagePlus size={14} />
+        {hasPhoto ? 'Choose another photo' : 'Use a photo'}
       </button>
       {hasPhoto && (
         <button

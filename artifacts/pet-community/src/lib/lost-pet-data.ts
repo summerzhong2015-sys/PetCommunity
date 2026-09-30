@@ -46,6 +46,13 @@ export type LostCase = {
    * behaviour anyway, since you would not have a stock photo of your own pet.
    */
   photo?: string;
+  /**
+   * Your own photograph, when you filed the report and had one on your profile.
+   * This is the picture that ends up on the poster, which is the whole reason
+   * it matters: a stranger matching a drawing to a real dog in a hedge is a
+   * much harder ask than matching a photograph.
+   */
+  avatar?: string;
 };
 
 /**

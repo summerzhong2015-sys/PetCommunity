@@ -149,6 +149,8 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
       sightings: [],
       weather: 'clear',
       portrait: { ...portrait, species: form.species },
+      // If you have a photo of your own pet, that is the one that helps.
+      avatar: prefill?.avatar,
     };
     const next = [created, ...userCases];
     setUserCases(next);
@@ -591,6 +593,7 @@ function AlertCard({
           <span className="relative shrink-0">
             <PetPhoto
               photo={item.photo}
+              src={item.avatar}
               portrait={item.portrait}
               alt={`${item.petName}, a ${item.breed}`}
               className="w-14 h-14 rounded-[1.1rem]"

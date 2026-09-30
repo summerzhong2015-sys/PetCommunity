@@ -188,6 +188,7 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
           <div className="flex items-center gap-4">
             <PetPhoto
               photo={item.photo}
+              src={item.avatar}
               portrait={item.portrait}
               alt={`${item.petName}, a ${item.breed}`}
               className="w-20 h-20 shrink-0 rounded-[1.6rem]"

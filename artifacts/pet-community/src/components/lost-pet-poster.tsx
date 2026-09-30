@@ -34,6 +34,7 @@ export function LostPetPoster({ item, minutesMissing }: { item: LostCase; minute
 
         <PetPhoto
           photo={item.photo}
+          src={item.avatar}
           portrait={item.portrait}
           alt={`${item.petName}, a ${item.breed}`}
           className="w-full aspect-square rounded-[1rem] mt-4"

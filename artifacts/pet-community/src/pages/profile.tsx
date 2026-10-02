@@ -28,9 +28,11 @@ import { PetPhoto } from '@/components/pet-photo';
 import { PhotoPicker } from '@/components/photo-picker';
 import { FramedAvatar } from '@/components/framed-avatar';
 import { FRAMES, normaliseFrame } from '@/lib/avatar-frame';
+import { AreaPicker } from '@/components/area-picker';
+import { areaLabel, describeArea, nearestLandmark, type Area } from '@/lib/area';
+import { LANDMARKS } from '@/lib/neighborhood-map';
 import {
   BIO_LIMIT,
-  NEIGHBOURHOODS,
   defaultProfile,
   isProfileSet,
   type PetProfile,
@@ -78,6 +80,11 @@ export function Profile({
   function editPhoto() {
     if (form.avatarSource) setReframing(true);
     else fileInput.current?.click();
+  }
+
+  /** The pin and the public label are set together, so they cannot disagree. */
+  function setArea(point: Area) {
+    update({ area: point, neighbourhood: areaLabel(point) });
   }
 
   function setSpecies(petType: PetType) {
@@ -340,7 +347,7 @@ export function Profile({
                   />
                 </label>
               </div>
-              <div className="grid sm:grid-cols-3 gap-3 mt-3">
+              <div className="grid sm:grid-cols-2 gap-3 mt-3">
                 <label className="block text-xs font-bold">
                   Breed or type
                   <input
@@ -363,23 +370,56 @@ export function Profile({
                     data-testid="input-profile-age"
                   />
                 </label>
-                <label className="block text-xs font-bold">
-                  Roughly where you walk <span className="font-normal text-muted-foreground">(optional)</span>
-                  <select
-                    className="field mt-1"
-                    value={form.neighbourhood}
-                    onChange={(e) => update({ neighbourhood: e.target.value })}
-                    data-testid="select-profile-neighbourhood"
-                  >
-                    {NEIGHBOURHOODS.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              </div>
 
-              <div className="sm:col-span-2 rounded-[.9rem] border border-border p-4 mt-1">
+              <div className="mt-6">
+                <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                  <p className="eyebrow">Where you walk from</p>
+                  {form.area ? (
+                    <span className="text-[11px] font-bold text-primary" data-testid="text-area-state">
+                      {describeArea(form.area)}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold text-destructive" data-testid="text-area-state">
+                      Not set yet
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 mb-3 leading-relaxed">
+                  Tap the map for the corner you usually set off from. It gets rounded to the nearest 50 metres before
+                  it is saved, and neighbours only ever see the landmark name &mdash; never the pin. Nothing here reads
+                  your device&rsquo;s location.
+                </p>
+                <AreaPicker area={form.area} onPick={setArea} />
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {LANDMARKS.map((landmark) => (
+                    <button
+                      key={landmark.id}
+                      type="button"
+                      onClick={() => setArea(landmark.at)}
+                      aria-pressed={Boolean(form.area) && areaLabel(form.area!) === landmark.name}
+                      className={`tag ${
+                        form.area && nearestLandmark(form.area).id === landmark.id ? 'bg-primary text-primary-foreground' : ''
+                      }`}
+                      data-testid={`button-profile-area-${landmark.id}`}
+                    >
+                      {landmark.name}
+                    </button>
+                  ))}
+                </div>
+                {form.area && (
+                  <button
+                    type="button"
+                    onClick={() => update({ area: undefined })}
+                    className="text-[11px] font-bold text-muted-foreground underline mt-3"
+                    data-testid="button-clear-area"
+                  >
+                    Clear my spot
+                  </button>
+                )}
+              </div>
+
+              <div className="rounded-[.9rem] border border-border p-4 mt-4">
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -391,13 +431,12 @@ export function Profile({
                   <span>
                     <span className="block text-sm font-bold">Let neighbours see you nearby</span>
                     <span className="block text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Adds you to the Nearby list for people whose landmark is within 2 km of yours. Only the
-                      landmark is used &mdash; never an address, never your device&rsquo;s location &mdash; and the
+                      Adds you to the Nearby list for people within 2 km of your spot. They see the landmark name
+                      only &mdash; never your pin, never an address, never your device&rsquo;s location &mdash; and the
                       distance shown is rounded to the nearest hundred metres. Leave this off and nobody sees you.
                     </span>
                   </span>
                 </label>
-              </div>
               </div>
             </fieldset>
 

@@ -9,6 +9,7 @@
  * Run with:  pnpm --filter @workspace/pet-community run test:profile
  */
 
+import { LANDMARKS } from './neighborhood-map.ts';
 import { defaultProfile, isProfileSet, isProfileStarted, normalizeProfile, NEIGHBOURHOODS } from './profile.ts';
 
 let pass = 0, fail = 0;
@@ -139,6 +140,33 @@ function complete(p: ReturnType<typeof normalizeProfile>): boolean {
     normalizeProfile({ shareArea: 1 as unknown as boolean }).shareArea === false);
   check('consent survives normalising twice',
     normalizeProfile(normalizeProfile({ shareArea: true })).shareArea === true);
+}
+
+// --- where you walk from --------------------------------------------------
+// The point of the pin is that nobody has one until they set one: a profile
+// read back from storage must not look like it was answered.
+{
+  check('a fresh profile has no pin', normalizeProfile({}).area === undefined);
+  check('a fresh profile is not counted as started', !isProfileStarted(normalizeProfile({})));
+  check('a pin alone counts as started', isProfileStarted(normalizeProfile({ area: { x: 100, y: 100 } } as never)));
+
+  for (const junk of [{ x: 'a', y: 2 }, { x: Number.NaN, y: 0 }, 'garden', 42, []]) {
+    check(`a rubbish pin (${JSON.stringify(junk)}) is dropped`, normalizeProfile({ area: junk } as never).area === undefined);
+  }
+
+  const stored = normalizeProfile({ area: { x: 137.6, y: -92.4 } } as never);
+  check('a stored pin is re-rounded on the way in',
+    stored.area !== undefined && stored.area.x % 50 === 0 && stored.area.y % 50 === 0, JSON.stringify(stored.area));
+
+  // The label is what neighbours see, so it must follow the pin rather than
+  // whatever was saved beside it.
+  const garden = LANDMARKS.find((l) => l.id === 'garden')!;
+  const moved = normalizeProfile({ area: garden.at, neighbourhood: 'Hilltop Lookout' } as never);
+  check('the label follows the pin', moved.neighbourhood === garden.name, moved.neighbourhood);
+  check('without a pin the saved label is kept',
+    normalizeProfile({ neighbourhood: 'Hilltop Lookout' }).neighbourhood === 'Hilltop Lookout');
+  check('the label is always a real landmark',
+    LANDMARKS.some((l) => l.name === normalizeProfile({ area: { x: 0, y: 0 } } as never).neighbourhood));
 }
 
 console.log(out.join('\n'));

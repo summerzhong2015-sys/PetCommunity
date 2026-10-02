@@ -9,6 +9,7 @@
  */
 
 import { LANDMARKS } from './neighborhood-map.ts';
+import { metresBetweenPoints, pointFor, type Area } from './area.ts';
 
 /** The circle the Nearby page describes. */
 export const CIRCLE_METRES = 2000;
@@ -42,4 +43,16 @@ export function describeDistance(metres: number): string {
 /** Whether someone falls inside the circle the page promises. */
 export function withinCircle(metres: number | null): boolean {
   return metres !== null && metres <= CIRCLE_METRES;
+}
+
+/**
+ * Metres from where I am — my pin if I dropped one, otherwise the landmark I
+ * picked — to the landmark someone else chose. Everything on the Nearby page
+ * measures through here, so a pin and a landmark are never mixed up.
+ */
+export function metresFromMine(area: Area | undefined, myLandmark: string, theirLandmark: string): number | null {
+  const mine = pointFor(area, myLandmark);
+  const theirs = pointFor(undefined, theirLandmark);
+  if (!mine || !theirs) return null;
+  return metresBetweenPoints(mine, theirs);
 }

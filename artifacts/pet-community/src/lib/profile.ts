@@ -11,6 +11,7 @@
 import { DEFAULT_PORTRAIT, type PortraitSpec } from './portrait-spec.ts';
 import { LANDMARKS } from './neighborhood-map.ts';
 import { normaliseFrame } from './avatar-frame.ts';
+import { areaLabel, readArea, type Area } from './area.ts';
 
 export type PetType = 'dog' | 'cat';
 
@@ -43,6 +44,13 @@ export type PetProfile = {
   avatarCrop?: { x: number; y: number; size: number };
   /** A decorative border. Purely for fun. */
   frame?: string;
+  /**
+   * Roughly where they walk from, as a pin on the neighbourhood plan, rounded
+   * to a 50 m grid. Undefined until they actually set it — which is the whole
+   * reason it exists, because a pre-filled dropdown was never answered by
+   * anyone. `neighbourhood` stays the public label and follows the pin.
+   */
+  area?: Area;
 };
 
 export const NEIGHBOURHOODS = LANDMARKS.map((l) => l.name);
@@ -66,13 +74,18 @@ export const BIO_LIMIT = 240;
 export function normalizeProfile(value: Partial<PetProfile> | null | undefined): PetProfile {
   const petType: PetType = value?.petType === 'cat' ? 'cat' : 'dog';
   const portrait = value?.portrait;
+  // A stored pin is re-rounded on the way in, so an older or hand-edited one
+  // can never be more precise than the grid promises.
+  const area = readArea(value?.area);
   return {
     username: value?.username?.trim() || defaultProfile.username,
     petName: value?.petName?.trim() || defaultProfile.petName,
     petType,
     breed: value?.breed ?? '',
     age: value?.age ?? '',
-    neighbourhood: value?.neighbourhood || defaultProfile.neighbourhood,
+    // The pin, when there is one, decides the label — otherwise the two could
+    // disagree and neighbours would see a landmark nobody chose.
+    neighbourhood: area ? areaLabel(area) : value?.neighbourhood || defaultProfile.neighbourhood,
     // Opting in has to be explicit: an older stored profile, or a corrupted
     // one, must never read as consent to be listed.
     shareArea: value?.shareArea === true,
@@ -88,6 +101,7 @@ export function normalizeProfile(value: Partial<PetProfile> | null | undefined):
         ? value.avatarCrop
         : undefined,
     frame: normaliseFrame(value?.frame),
+    area,
     bio: value?.bio ?? '',
     portrait:
       portrait && portrait.coat && portrait.marking && portrait.ears && portrait.mood
@@ -117,6 +131,7 @@ export function isProfileStarted(profile: PetProfile): boolean {
     profile.age.trim() !== '' ||
     profile.bio.trim() !== '' ||
     profile.petType !== defaultProfile.petType ||
+    profile.area !== undefined ||
     JSON.stringify(profile.portrait) !== JSON.stringify(defaultProfile.portrait)
   );
 }

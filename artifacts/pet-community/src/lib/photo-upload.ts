@@ -13,6 +13,13 @@
 /** The longest edge we keep. Avatars are never shown larger than this. */
 export const MAX_EDGE = 384;
 
+/**
+ * The longest edge of the copy kept for re-framing. Bigger than the avatar so
+ * moving the frame does not visibly soften it, small enough that both together
+ * are a rounding error against the browser's storage.
+ */
+export const SOURCE_EDGE = 720;
+
 /** Refuse anything that would crowd out the rest of the profile. */
 export const MAX_STORED_BYTES = 180_000;
 

@@ -4,7 +4,7 @@
  * exactly how that lands in the feed.
  */
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
 import {
   BellRing,
@@ -26,6 +26,8 @@ import { PageHeader, type Notify } from '@/components/page-bits';
 import { review } from '@/lib/moderation';
 import { PetPhoto } from '@/components/pet-photo';
 import { PhotoPicker } from '@/components/photo-picker';
+import { FramedAvatar } from '@/components/framed-avatar';
+import { FRAMES, normaliseFrame } from '@/lib/avatar-frame';
 import {
   BIO_LIMIT,
   NEIGHBOURHOODS,
@@ -54,6 +56,13 @@ export function Profile({
 }) {
   const [form, setForm] = useState<PetProfile>(profile);
   const [saved, setSaved] = useState(false);
+  // True while the frame is being moved over a photo that is already saved.
+  const [reframing, setReframing] = useState(false);
+  // Held here so the pencil on the picture can open the album straight away.
+  // Calling .click() inside the click handler keeps the browser's gesture,
+  // which an effect would lose.
+  const fileInput = useRef<HTMLInputElement | null>(null);
+  const frame = normaliseFrame(form.frame);
   useEffect(() => setForm(profile), [profile]);
 
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(profile), [form, profile]);
@@ -62,6 +71,13 @@ export function Profile({
   function update(patch: Partial<PetProfile>) {
     setForm((current) => ({ ...current, ...patch }));
     setSaved(false);
+  }
+
+  /** The pencil on the picture: back to the frame if there is a photo to
+   *  re-frame, otherwise straight to the album. */
+  function editPhoto() {
+    if (form.avatarSource) setReframing(true);
+    else fileInput.current?.click();
   }
 
   function setSpecies(petType: PetType) {
@@ -125,12 +141,14 @@ export function Profile({
               <legend className="eyebrow mb-3">Profile picture</legend>
               <div className="grid sm:grid-cols-[150px_1fr] gap-6 items-start">
                 <div className="text-center sm:text-left">
-                  <PetPhoto
-                    src={form.avatar}
-                    portrait={form.portrait}
-                    alt={form.petName}
-                    className="w-36 h-36 mx-auto sm:mx-0 rounded-[2.4rem]"
-                  />
+                  <FramedAvatar
+                    frame={frame}
+                    className="w-36 h-36 mx-auto sm:mx-0"
+                    onEdit={editPhoto}
+                    editLabel={form.avatarSource ? 'Move the frame on your photo' : 'Add a photo'}
+                  >
+                    <PetPhoto src={form.avatar} portrait={form.portrait} alt={form.petName} className="w-full h-full" />
+                  </FramedAvatar>
                   {!form.avatar && (
                     <button
                       type="button"
@@ -143,8 +161,15 @@ export function Profile({
                   )}
                   <PhotoPicker
                     hasPhoto={Boolean(form.avatar)}
-                    onPicked={(avatar) => update({ avatar })}
-                    onCleared={() => update({ avatar: undefined })}
+                    fileInputRef={fileInput}
+                    reframe={reframing}
+                    existingSource={form.avatarSource}
+                    existingCrop={form.avatarCrop}
+                    onReframeHandled={() => setReframing(false)}
+                    onPicked={({ avatar, source, crop }) =>
+                      update({ avatar, avatarSource: source, avatarCrop: crop })
+                    }
+                    onCleared={() => update({ avatar: undefined, avatarSource: undefined, avatarCrop: undefined })}
                     onError={(text) => notify({ tone: 'error', text })}
                   />
                 </div>
@@ -246,6 +271,41 @@ export function Profile({
                       ))}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-5 border-t border-border/70">
+                <p className="eyebrow mb-1">Frame it</p>
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  Goes around the picture wherever you turn up. It picks up each
+                  tab&rsquo;s colour as you move about.
+                </p>
+                <div className="flex flex-wrap gap-2.5">
+                  {FRAMES.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => update({ frame: option.id })}
+                      aria-pressed={frame === option.id}
+                      title={option.hint}
+                      className={`flex flex-col items-center gap-1.5 rounded-2xl px-2.5 py-2 border transition-colors ${
+                        frame === option.id
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:bg-secondary/40'
+                      }`}
+                      data-testid={`button-profile-frame-${option.id}`}
+                    >
+                      <FramedAvatar frame={option.id} className="w-11 h-11">
+                        <PetPhoto
+                          src={form.avatar}
+                          portrait={form.portrait}
+                          alt=""
+                          className="w-full h-full"
+                        />
+                      </FramedAvatar>
+                      <span className="text-[10px] font-bold leading-none">{option.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </fieldset>

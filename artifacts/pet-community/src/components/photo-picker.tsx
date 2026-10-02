@@ -20,13 +20,26 @@ export function PhotoPicker({
   onCleared,
   hasPhoto,
   onError,
+  reframe,
+  existingSource,
+  existingCrop,
+  onReframeHandled,
+  fileInputRef,
 }: {
-  onPicked: (dataUrl: string) => void;
+  onPicked: (result: { avatar: string; source: string; crop: { x: number; y: number; size: number } }) => void;
   onCleared: () => void;
   hasPhoto: boolean;
   onError: (message: string) => void;
+  /** Set true to open straight into the cropper on the saved photo. */
+  reframe?: boolean;
+  existingSource?: string;
+  existingCrop?: { x: number; y: number; size: number };
+  onReframeHandled?: () => void;
+  /** Lets a button elsewhere — the pencil on the picture — open the album. */
+  fileInputRef?: { current: HTMLInputElement | null };
 }) {
-  const input = useRef<HTMLInputElement | null>(null);
+  const ownInput = useRef<HTMLInputElement | null>(null);
+  const input = fileInputRef ?? ownInput;
   // The photo being framed, at full size. Held only until it is saved.
   const [pending, setPending] = useState<string | null>(null);
 
@@ -43,15 +56,29 @@ export function PhotoPicker({
     if (input.current) input.current.value = '';
   }
 
-  function finish(dataUrl: string) {
+  function finish(result: { avatar: string; source: string; crop: { x: number; y: number; size: number } }) {
     if (pending) URL.revokeObjectURL(pending);
     setPending(null);
-    onPicked(dataUrl);
+    onPicked(result);
   }
 
   function cancel() {
     if (pending) URL.revokeObjectURL(pending);
     setPending(null);
+  }
+
+  // Re-framing the photo already saved: no file picker, no second trip to the
+  // album, and the frame starts exactly where it was left.
+  if (reframe && existingSource) {
+    return (
+      <PhotoCropper
+        src={existingSource}
+        initialCrop={existingCrop}
+        onDone={(result) => { onReframeHandled?.(); onPicked(result); }}
+        onCancel={() => onReframeHandled?.()}
+        onError={(m) => { onError(m); onReframeHandled?.(); }}
+      />
+    );
   }
 
   if (pending) {

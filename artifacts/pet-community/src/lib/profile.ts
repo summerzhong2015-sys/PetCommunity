@@ -10,6 +10,7 @@
 
 import { DEFAULT_PORTRAIT, type PortraitSpec } from './portrait-spec.ts';
 import { LANDMARKS } from './neighborhood-map.ts';
+import { normaliseFrame } from './avatar-frame.ts';
 
 export type PetType = 'dog' | 'cat';
 
@@ -32,6 +33,16 @@ export type PetProfile = {
   portrait: PortraitSpec;
   /** A photo from their album, kept in this browser. Beats the drawing when set. */
   avatar?: string;
+  /**
+   * The photo before cropping, kept smaller than the original so it can be
+   * re-framed without asking for the file again. Without this, adjusting a
+   * crop means finding the photo in your album a second time.
+   */
+  avatarSource?: string;
+  /** Where the frame sat on that source, so reopening starts where you left off. */
+  avatarCrop?: { x: number; y: number; size: number };
+  /** A decorative border. Purely for fun. */
+  frame?: string;
 };
 
 export const NEIGHBOURHOODS = LANDMARKS.map((l) => l.name);
@@ -44,6 +55,7 @@ export const defaultProfile: PetProfile = {
   age: '',
   neighbourhood: NEIGHBOURHOODS[0],
   shareArea: false,
+  frame: 'none',
   bio: '',
   portrait: DEFAULT_PORTRAIT,
 };
@@ -67,6 +79,15 @@ export function normalizeProfile(value: Partial<PetProfile> | null | undefined):
     // Only a data URL we produced ourselves is kept; anything else is dropped
     // rather than handed to an <img src>.
     avatar: typeof value?.avatar === 'string' && value.avatar.startsWith('data:image/') ? value.avatar : undefined,
+    avatarSource:
+      typeof value?.avatarSource === 'string' && value.avatarSource.startsWith('data:image/')
+        ? value.avatarSource
+        : undefined,
+    avatarCrop:
+      value?.avatarCrop && typeof value.avatarCrop === 'object'
+        ? value.avatarCrop
+        : undefined,
+    frame: normaliseFrame(value?.frame),
     bio: value?.bio ?? '',
     portrait:
       portrait && portrait.coat && portrait.marking && portrait.ears && portrait.mood

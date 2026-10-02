@@ -61,13 +61,17 @@ function complete(p: ReturnType<typeof normalizeProfile>): boolean {
 {
   const full = {
     username: 'Rowan', petName: 'Pip', petType: 'dog' as const,
-    breed: 'Terrier', age: '4 years', neighbourhood: NEIGHBOURHOODS[3], shareArea: true, bio: 'Bolts at bikes.',
+    breed: 'Terrier', age: '4 years', neighbourhood: NEIGHBOURHOODS[3], shareArea: true, frame: 'scallop', bio: 'Bolts at bikes.',
     portrait: { species: 'dog' as const, coat: { base: '#111', shade: '#222', accent: '#333', bg: '#444' },
                 marking: 'patch' as const, ears: 'folded' as const, mood: 'wary' as const },
   };
   const p = normalizeProfile(full);
-  check('a complete profile round-trips unchanged',
-    JSON.stringify(p) === JSON.stringify(full), JSON.stringify(p));
+  // Key by key, so adding a field to the profile does not fail this on
+  // ordering alone.
+  const differing = Object.entries(full).filter(
+    ([key, value]) => JSON.stringify((p as Record<string, unknown>)[key]) !== JSON.stringify(value),
+  );
+  check('a complete profile round-trips unchanged', differing.length === 0, JSON.stringify(differing));
 }
 
 // Species and portrait must not be able to disagree — the drawing reads species.

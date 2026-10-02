@@ -16,19 +16,22 @@ import {
   MAX_ZOOM, MIN_ZOOM,
   centredOffset, clampZoom, cropFor, offsetAfterZoom, previewTransform,
 } from '@/lib/photo-crop';
-import { MAX_EDGE, QUALITY_STEPS, withinBudget } from '@/lib/photo-upload';
+import { MAX_EDGE, QUALITY_STEPS, SOURCE_EDGE, withinBudget } from '@/lib/photo-upload';
 
 const VIEWPORT = 248;
 
 export function PhotoCropper({
   src,
+  initialCrop,
   onDone,
   onCancel,
   onError,
 }: {
   /** The full-size photo, as an object URL or data URL. */
   src: string;
-  onDone: (dataUrl: string) => void;
+  /** Where the frame was last time, so reopening starts where you left off. */
+  initialCrop?: { x: number; y: number; size: number };
+  onDone: (result: { avatar: string; source: string; crop: { x: number; y: number; size: number } }) => void;
   onCancel: () => void;
   onError: (message: string) => void;
 }) {
@@ -42,11 +45,18 @@ export function PhotoCropper({
     const img = new Image();
     img.onload = () => {
       setImage(img);
-      setOffset(centredOffset(img.naturalWidth, img.naturalHeight, 1));
+      if (initialCrop && initialCrop.size > 0) {
+        // Reopen exactly where they left it, rather than jumping to the middle.
+        const shortest = Math.min(img.naturalWidth, img.naturalHeight);
+        setZoom(clampZoom(shortest / initialCrop.size));
+        setOffset({ x: initialCrop.x, y: initialCrop.y });
+      } else {
+        setOffset(centredOffset(img.naturalWidth, img.naturalHeight, 1));
+      }
     };
     img.onerror = () => onError('That photo could not be read. A JPEG or PNG usually works.');
     img.src = src;
-  }, [src, onError]);
+  }, [src, initialCrop, onError]);
 
   if (!image) {
     return (
@@ -88,10 +98,26 @@ export function PhotoCropper({
       if (!context) throw new Error('no canvas');
       context.drawImage(image!, crop.x, crop.y, crop.size, crop.size, 0, 0, size, size);
 
+      // The source is kept too, a bit larger than the avatar, so the frame can
+      // be moved again later without hunting for the file.
+      const sourceCanvas = document.createElement('canvas');
+      const sourceScale = Math.min(1, SOURCE_EDGE / Math.max(image!.naturalWidth, image!.naturalHeight));
+      sourceCanvas.width = Math.max(1, Math.round(image!.naturalWidth * sourceScale));
+      sourceCanvas.height = Math.max(1, Math.round(image!.naturalHeight * sourceScale));
+      const sourceContext = sourceCanvas.getContext('2d');
+      sourceContext?.drawImage(image!, 0, 0, sourceCanvas.width, sourceCanvas.height);
+      const source = sourceCanvas.toDataURL('image/jpeg', 0.72);
+      // The crop is in source-image pixels, so it has to be scaled with it.
+      const scaledCrop = {
+        x: Math.round(crop.x * sourceScale),
+        y: Math.round(crop.y * sourceScale),
+        size: Math.max(1, Math.round(crop.size * sourceScale)),
+      };
+
       for (const quality of QUALITY_STEPS) {
         const encoded = canvas.toDataURL('image/jpeg', quality);
         if (withinBudget(encoded)) {
-          onDone(encoded);
+          onDone({ avatar: encoded, source, crop: scaledCrop });
           return;
         }
       }

@@ -386,9 +386,9 @@ export function Profile({
                   )}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1 mb-3 leading-relaxed">
-                  Tap the map for the corner you usually set off from. It gets rounded to the nearest 50 metres before
-                  it is saved, and neighbours only ever see the landmark name &mdash; never the pin. Nothing here reads
-                  your device&rsquo;s location.
+                  A real map of Murrayville &mdash; find your corner and tap it. Whatever you tap is rounded to the
+                  nearest 50 metres before it is saved, which is what the circle shows, and neighbours only ever see
+                  the landmark name &mdash; never the pin. Nothing here reads your device&rsquo;s location.
                 </p>
                 <AreaPicker area={form.area} onPick={setArea} />
                 <div className="flex flex-wrap gap-1.5 mt-3">

@@ -160,11 +160,11 @@ function complete(p: ReturnType<typeof normalizeProfile>): boolean {
 
   // The label is what neighbours see, so it must follow the pin rather than
   // whatever was saved beside it.
-  const garden = LANDMARKS.find((l) => l.id === 'garden')!;
-  const moved = normalizeProfile({ area: garden.at, neighbourhood: 'Hilltop Lookout' } as never);
+  const garden = LANDMARKS.find((l) => l.id === 'old-yale-park')!;
+  const moved = normalizeProfile({ area: garden.at, neighbourhood: 'W.C. Blair Recreation Centre' } as never);
   check('the label follows the pin', moved.neighbourhood === garden.name, moved.neighbourhood);
   check('without a pin the saved label is kept',
-    normalizeProfile({ neighbourhood: 'Hilltop Lookout' }).neighbourhood === 'Hilltop Lookout');
+    normalizeProfile({ neighbourhood: 'W.C. Blair Recreation Centre' }).neighbourhood === 'W.C. Blair Recreation Centre');
   check('the label is always a real landmark',
     LANDMARKS.some((l) => l.name === normalizeProfile({ area: { x: 0, y: 0 } } as never).neighbourhood));
 }

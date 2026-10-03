@@ -11,7 +11,7 @@
  *
  *   - The name and the photograph are the poster. Everything else is smaller.
  *   - One instruction, not a paragraph. "Do not chase" beats three sentences.
- *   - Where and when, in plain words, because "last seen Willow Gate, Tuesday
+ *   - Where and when, in plain words, because "last seen Derek Doubleday Arboretum, Tuesday
  *     evening" is what jogs a memory.
  *   - One way to get in touch, big enough to read from a car.
  *

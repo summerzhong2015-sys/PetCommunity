@@ -29,6 +29,7 @@ const TERRAIN_FILL: Record<TerrainKind, string> = {
   commercial: 'hsl(30 26% 72%)',
   industrial: 'hsl(210 12% 72%)',
   open: 'hsl(72 32% 82%)',
+  school: 'hsl(205 30% 80%)',
 };
 
 /**
@@ -122,8 +123,10 @@ export function SearchMap({
       {/* Ground */}
       <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="hsl(60 24% 88%)" />
 
-      {/* Land use */}
-      {TERRAIN_ZONES.map((z) => (
+      {/* Land use. Drawn broadest first — the housing blocks surround the
+          parks and schools in the list, so painting in list order would bury
+          them. */}
+      {[...TERRAIN_ZONES].reverse().map((z) => (
         <rect
           key={z.id}
           x={sx(z.x0)}

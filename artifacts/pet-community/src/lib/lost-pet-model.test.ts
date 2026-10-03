@@ -108,24 +108,32 @@ const base = (over: Partial<PredictionInput> = {}): PredictionInput => ({
 
 // --- 7. barriers actually suppress the far side ---
 {
-  // Ridge Road runs roughly along y=0. Anchor north of it, compare mirrored cells.
-  // Anchor at (0,80). North Creek sits near y=236 at x=0 and Ridge Road near
-  // y=4, so (0,180) crosses nothing and (0,-20) crosses only Ridge Road.
-  // Both cells are 100 m out and both sit on 'open' ground.
-  const p = predict(base({ species: 'cat', lastSeen: { x: 0, y: 80 }, minutesSinceLastSeen: 300 }));
-  const cellAt = (x: number, y: number) =>
-    p.grid.cells.reduce((best, c) =>
-      Math.hypot(c.x - x, c.y - y) < Math.hypot(best.x - x, best.y - y) ? c : best, p.grid.cells[0]);
-  const near = cellAt(0, 180);
-  const across = cellAt(0, -20);
-  check('both comparison cells are open ground',
-    terrainAt({ x: 0, y: 180 }) === 'open' && terrainAt({ x: 0, y: -20 }) === 'open');
-  check('cell across Ridge Road is suppressed vs an equidistant cell on the same side',
+  // Murrayville's grid gives clean tests. 48 Avenue runs along y=0 with houses
+  // either side of it, so two cells 155 m north and south of an anchor on the
+  // avenue sit on identical ground and differ only by the road between them.
+  const p = predict(base({ species: 'cat', lastSeen: { x: -700, y: -25 }, minutesSinceLastSeen: 300 }));
+  const cellAt = (pr: any, x: number, y: number) =>
+    pr.grid.cells.reduce((best: any, c: any) =>
+      Math.hypot(c.x - x, c.y - y) < Math.hypot(best.x - x, best.y - y) ? c : best, pr.grid.cells[0]);
+  const near = cellAt(p, -700, -180);
+  const across = cellAt(p, -700, 130);
+  check('both comparison cells are the same ground',
+    terrainAt({ x: -700, y: -180 }) === 'dense-housing' && terrainAt({ x: -700, y: 130 }) === 'dense-housing',
+    `${terrainAt({ x: -700, y: -180 })} / ${terrainAt({ x: -700, y: 130 })}`);
+  check('cell across 48 Avenue is suppressed vs an equidistant cell on the same side',
     across.p < near.p * 0.6, `same-side=${near.p.toExponential(2)} across=${across.p.toExponential(2)}`);
-  // And the creek should bite harder than the road for a cat.
-  const acrossCreek = cellAt(0, 300);
+
+  // And the Nicomekl should bite harder than a road does, for a cat. Same
+  // trick on the floodplain, where both cells are open ground.
+  const north = predict(base({ species: 'cat', lastSeen: { x: 0, y: 760 }, minutesSinceLastSeen: 300 }));
+  const nearCreek = cellAt(north, 0, 620);
+  const acrossCreek = cellAt(north, 0, 900);
+  check('the creek cells are both open ground',
+    terrainAt({ x: 0, y: 620 }) === 'open' && terrainAt({ x: 0, y: 900 }) === 'open',
+    `${terrainAt({ x: 0, y: 620 })} / ${terrainAt({ x: 0, y: 900 })}`);
   check('the creek suppresses a cat more than the road does',
-    acrossCreek.p < across.p, `road=${across.p.toExponential(2)} creek=${acrossCreek.p.toExponential(2)}`);
+    acrossCreek.p / nearCreek.p < across.p / near.p,
+    `road=${(across.p / near.p).toFixed(3)} creek=${(acrossCreek.p / nearCreek.p).toFixed(3)}`);
 }
 
 // --- 8. terrain preference differs by species ---
@@ -134,13 +142,13 @@ const base = (over: Partial<PredictionInput> = {}): PredictionInput => ({
     p.grid.cells.reduce((best: any, c: any) =>
       Math.hypot(c.x - x, c.y - y) < Math.hypot(best.x - x, best.y - y) ? c : best, p.grid.cells[0]);
   // Compare housing (cover) vs open meadow, both ~equidistant from an anchor between them.
-  const anchor = { x: 60, y: 60 };
+  const anchor = { x: 300, y: -100 };
   const cat = predict(base({ species: 'cat', lastSeen: anchor, minutesSinceLastSeen: 240 }));
   const dog = predict(base({ species: 'dog', lastSeen: anchor, minutesSinceLastSeen: 240 }));
-  const housing = { x: 110, y: -120 };  // Oak Terrace, dense-housing
-  const meadow  = { x: 110, y: 240 };   // Riverside meadow, open
+  const housing = { x: 110, y: -120 };  // 46 Avenue, dense-housing
+  const meadow  = { x: 300, y: 50 };    // the gap along 48 Avenue, open
   check('housing is dense-housing terrain', terrainAt(housing) === 'dense-housing', terrainAt(housing));
-  check('meadow is open terrain', terrainAt(meadow) === 'open', terrainAt(meadow));
+  check('the open cell is open terrain', terrainAt(meadow) === 'open', terrainAt(meadow));
   const catRatio = at(cat, housing.x, housing.y).p / at(cat, meadow.x, meadow.y).p;
   const dogRatio = at(dog, housing.x, housing.y).p / at(dog, meadow.x, meadow.y).p;
   check('cats favour cover over open ground more than dogs do', catRatio > dogRatio,
@@ -250,8 +258,8 @@ const base = (over: Partial<PredictionInput> = {}): PredictionInput => ({
   check('compound directions beat simple ones', ne.heading !== null && ne.heading.x > 0.5 && ne.heading.y > 0.5,
     JSON.stringify(ne.heading));
 
-  const named = readReport('I saw him near Willow Gate about an hour ago.');
-  check('a named landmark is read', named.places.some(p => p.name === 'Willow Gate'),
+  const named = readReport('I saw him near Five Corners about an hour ago.');
+  check('a named landmark is read', named.places.some(p => p.name === 'Five Corners'),
     JSON.stringify(named.places.map(p=>p.name)));
 
   check('crossing a road is read', readReport('He crossed the road by the shops').crossedRoad === true);
@@ -293,11 +301,12 @@ const base = (over: Partial<PredictionInput> = {}): PredictionInput => ({
   check('"limping" tightens the search radius',
     hurt.rings.p80 < predict(plain).rings.p80, `${predict(plain).rings.p80} -> ${hurt.rings.p80}`);
 
-  // Anchor is (-120,190). Willow Gate thicket is woodland just west/north of it;
-  // Riverside meadow is open ground to the east at the same sort of distance.
+  // The anchor (-120,190) is inside the Derek Doubleday Arboretum, which is
+  // the woodland on this map; 90 m north is still trees, 90 m south is the
+  // open ground along 48 Avenue.
   const woods = predict({ ...plain, cues: readReport('went into the thicket') });
-  const woodCell = { x: -120, y: 300 };
-  const openCell = { x: 110, y: 300 };
+  const woodCell = { x: -120, y: 280 };
+  const openCell = { x: -120, y: 100 };
   check('comparison cells are woodland and open',
     terrainAt(woodCell) === 'woodland' && terrainAt(openCell) === 'open');
   const ratioPlain = at(predict(plain), woodCell.x, woodCell.y).p / at(predict(plain), openCell.x, openCell.y).p;
@@ -319,8 +328,8 @@ const base = (over: Partial<PredictionInput> = {}): PredictionInput => ({
     predict({ ...plain, cues: readReport('bolted north into the thicket') }).zones[0].centre.y > plain.lastSeen.y,
     `${predict({ ...plain, cues: readReport('bolted north into the thicket') }).zones[0].place}`);
 
-  const depot = predict({ ...plain, cues: readReport('someone saw him by the rail depot') });
-  const nearDepot = (pr: any) => pr.grid.cells.filter((c: any) => Math.hypot(c.x - 400, c.y + 235) < 130).reduce((s: number, c: any) => s + c.p, 0);
+  const depot = predict({ ...plain, cues: readReport('someone saw him by Five Corners') });
+  const nearDepot = (pr: any) => pr.grid.cells.filter((c: any) => Math.hypot(c.x + 422, c.y) < 130).reduce((s: number, c: any) => s + c.p, 0);
   check('naming a landmark pulls mass towards it',
     nearDepot(depot) > nearDepot(predict(plain)) * 1.5,
     `${nearDepot(predict(plain)).toExponential(2)} -> ${nearDepot(depot).toExponential(2)}`);

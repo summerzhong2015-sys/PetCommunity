@@ -119,10 +119,12 @@ function check(name: string, ok: boolean, detail = '') {
     const here = describeArea(landmark.at);
     check(`standing at ${landmark.name} just names it`, here === `right by ${landmark.name}`, here);
   }
-  const garden = LANDMARKS.find((l) => l.id === 'garden')!;
+  // The cemetery, because it is the one landmark with nothing else within a
+  // few hundred metres of it — so the sentence has to name it.
+  const garden = LANDMARKS.find((l) => l.id === 'cemetery')!;
   const north = describeArea({ x: garden.at.x, y: garden.at.y + 300 });
   check('a spot north of a landmark says north', north.includes('north'), north);
-  check('a spot north of a landmark names a landmark', LANDMARKS.some((l) => north.includes(l.name)), north);
+  check('a spot north of a landmark names that landmark', north.includes(garden.name), north);
   const nudged = describeArea({ x: garden.at.x + AT_LANDMARK_METRES - 10, y: garden.at.y });
   check('just inside the landmark still counts as being there', nudged.startsWith('right by'), nudged);
   for (const spot of [{ x: 0, y: 0 }, { x: -600, y: -450 }, { x: 600, y: 450 }, { x: 123, y: -321 }]) {
@@ -134,9 +136,9 @@ function check(name: string, ok: boolean, detail = '') {
 // --- pin or landmark, one set of units ------------------------------------
 {
   const pin = { x: 100, y: 100 };
-  check('a pin wins', JSON.stringify(pointFor(pin, 'Alder Street')) === JSON.stringify(pin));
+  check('a pin wins', JSON.stringify(pointFor(pin, 'Five Corners')) === JSON.stringify(pin));
   check('a landmark fills in',
-    JSON.stringify(pointFor(undefined, 'Alder Street')) === JSON.stringify(LANDMARKS.find((l) => l.name === 'Alder Street')!.at));
+    JSON.stringify(pointFor(undefined, 'Five Corners')) === JSON.stringify(LANDMARKS.find((l) => l.name === 'Five Corners')!.at));
   check('neither gives nothing', pointFor(undefined, undefined) === null);
   check('an unknown landmark gives nothing', pointFor(undefined, 'Atlantis') === null);
 }

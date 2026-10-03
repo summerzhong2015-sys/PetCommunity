@@ -187,6 +187,9 @@ const TERRAIN_FIT: Record<Species, Record<TerrainKind, number>> = {
     industrial: 1.4,
     park: 1.3,
     commercial: 0.85,
+    // Fenced fields with sheds and portables round the edges: good cover at
+    // night, nowhere to be during the day.
+    school: 0.9,
     open: 0.3,
   },
   dog: {
@@ -196,6 +199,8 @@ const TERRAIN_FIT: Record<Species, Record<TerrainKind, number>> = {
     commercial: 1.2,
     'dense-housing': 1.0,
     garden: 1.0,
+    // A school field is a dog magnet, but the fences make it hard to get into.
+    school: 1.3,
     industrial: 0.85,
   },
 };
@@ -443,8 +448,8 @@ function extractZones(grid: Grid, input: PredictionInput, anchor: Vec): SearchZo
     .sort((a, b) => b.probability - a.probability)
     .map((zone, index) => ({ ...zone, rank: index + 1, id: `zone-${index + 1}` }));
 
-  // Two zones can land in the same named area, and "search Willow Gate thicket,
-  // then search Willow Gate thicket" is not an instruction anyone can follow.
+  // Two zones can land in the same named area, and "search the Arboretum,
+  // then search the Arboretum" is not an instruction anyone can follow.
   // Repeated names get a distance and a bearing from the last known position,
   // which is what someone standing there actually needs.
   const counts = new Map<string, number>();

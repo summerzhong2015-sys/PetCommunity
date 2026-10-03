@@ -33,6 +33,7 @@ const TERRAIN_FILL: Record<TerrainKind, string> = {
   commercial: 'hsl(30 26% 75%)',
   industrial: 'hsl(210 12% 75%)',
   open: 'hsl(72 32% 84%)',
+  school: 'hsl(205 30% 80%)',
 };
 
 const BARRIER_STROKE: Record<string, string> = {
@@ -98,7 +99,7 @@ export function AreaPicker({
       >
         <rect x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} fill="hsl(60 30% 92%)" />
 
-        {TERRAIN_ZONES.map((zone) => (
+        {[...TERRAIN_ZONES].reverse().map((zone) => (
           <rect
             key={zone.id}
             x={sx(zone.x0)}
@@ -142,7 +143,7 @@ export function AreaPicker({
                 fill="hsl(var(--foreground))"
                 opacity="0.72"
               >
-                {landmark.name}
+                {landmark.short}
               </text>
             </g>
           );

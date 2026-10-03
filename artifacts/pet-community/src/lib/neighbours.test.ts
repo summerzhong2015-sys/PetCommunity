@@ -42,7 +42,7 @@ check('area names are unique', new Set(LANDMARKS.map((l) => l.name)).size === LA
   check('an unknown other area gives nothing', metresBetween(LANDMARKS[0].name, '') === null);
   check('an empty area gives nothing', metresBetween('', '') === null);
   check('nothing is never inside the circle', !withinCircle(null));
-  check('areaNamed refuses a name it does not hold', areaNamed('12 Alder Street') === undefined);
+  check('areaNamed refuses a name it does not hold', areaNamed('12 Nowhere Lane') === undefined);
 }
 
 // The circle the page promises.
@@ -50,14 +50,19 @@ check('area names are unique', new Set(LANDMARKS.map((l) => l.name)).size === LA
   check('the circle matches what Nearby says', CIRCLE_METRES === 2000);
   check('right on the edge counts as inside', withinCircle(CIRCLE_METRES));
   check('a metre past the edge is outside', !withinCircle(CIRCLE_METRES + 1));
-  check('every seeded area is inside the circle of every other', (() => {
-    for (const a of LANDMARKS) {
-      for (const b of LANDMARKS) {
-        if (!withinCircle(metresBetween(a.name, b.name))) return false;
-      }
-    }
-    return true;
-  })());
+  // Murrayville is about 5.5 km across its longest line, so the circle no
+  // longer swallows the whole map — the cemetery and James Hill Park really
+  // are more than 2 km apart. What has to hold is that the filter is doing
+  // something real: every area has company, and the far corners do not.
+  check('every area has at least two others inside its circle', LANDMARKS.every((a) => {
+    const inside = LANDMARKS.filter((b) => b.id !== a.id && withinCircle(metresBetween(a.name, b.name)));
+    return inside.length >= 2;
+  }));
+  const pairs = LANDMARKS.flatMap((a) => LANDMARKS.map((b) => metresBetween(a.name, b.name) ?? 0));
+  check('the furthest two areas are outside each other\'s circle',
+    Math.max(...pairs) > CIRCLE_METRES, `${Math.round(Math.max(...pairs))} m`);
+  check('the core of the neighbourhood is well inside it',
+    withinCircle(metresBetween('Five Corners', 'the 48th Avenue shops')));
 }
 
 // Phrasing: blunt on purpose.

@@ -1,17 +1,46 @@
 /**
- * A metric model of the neighborhood, in metres, with the origin at the centre
- * of the map. +x is east, +y is north. Everything the lost-pet search model
- * reasons about — where an animal can hide, what it has to cross to get
- * somewhere, what might draw it in — is described here.
+ * Murrayville, Langley, British Columbia — in metres.
  *
- * The map spans 1200 m x 900 m, which is roughly the area a search party can
- * realistically cover on foot in an afternoon.
+ * This used to be an invented neighbourhood. It is now the real one, drawn as
+ * well as a map can be drawn from addresses rather than a survey: the shape and
+ * the arrangement are right, the edges are approximate, and nothing here is
+ * precise enough to find a house with.
+ *
+ * Langley's grid does most of the work. Streets run north-south and avenues
+ * east-west, both numbered, so every address is already a coordinate: James
+ * Hill Elementary at 22144 Old Yale Road is 221.4 Street, a little over 50
+ * Avenue. One unit of numbering is about 211 m — worked out from the real
+ * latitude of Langley Memorial Hospital (49.0954 N, 22051 Fraser Highway)
+ * against 0 Avenue on the border — so `at(street, avenue)` turns any address
+ * into a point.
+ *
+ * The origin is 218 Street and 48 Avenue, which puts Five Corners — where 216
+ * Street, 48 Avenue and Old Yale Road meet, and where Murrayville actually
+ * begins — a little west of centre, and leaves room for the hospital and the
+ * shops to the east and the Nicomekl to the north.
+ *
+ * Everything the lost-pet search model reasons about — where an animal can
+ * hide, what it has to cross, what might draw it in — is described here.
  */
 
 export type Vec = { x: number; y: number };
 
-export const MAP_WIDTH = 1200;
-export const MAP_HEIGHT = 900;
+/** Metres per unit of Langley's street and avenue numbering. */
+export const BLOCK_METRES = 211;
+export const ORIGIN_STREET = 218;
+export const ORIGIN_AVENUE = 48;
+
+/** An address, as a point. 22051 Fraser Hwy is `at(220.5, 49)`. */
+export function at(street: number, avenue: number): Vec {
+  return {
+    x: Math.round((street - ORIGIN_STREET) * BLOCK_METRES),
+    y: Math.round((avenue - ORIGIN_AVENUE) * BLOCK_METRES),
+  };
+}
+
+/** 213 to 223 Street, 43 to 53 Avenue — Murrayville with its edges. */
+export const MAP_WIDTH = 2200;
+export const MAP_HEIGHT = 2000;
 export const MAP_MIN_X = -MAP_WIDTH / 2;
 export const MAP_MAX_X = MAP_WIDTH / 2;
 export const MAP_MIN_Y = -MAP_HEIGHT / 2;
@@ -25,7 +54,8 @@ export type TerrainKind =
   | 'commercial'
   | 'garden'
   | 'open'
-  | 'industrial';
+  | 'industrial'
+  | 'school';
 
 export type TerrainZone = {
   id: string;
@@ -63,84 +93,114 @@ export type Attractor = {
   strength: number;
 };
 
+/** A block of the grid, from its two corners as street and avenue numbers. */
+function block(id: string, name: string, kind: TerrainKind, s0: number, a0: number, s1: number, a1: number): TerrainZone {
+  const from = at(s0, a0);
+  const to = at(s1, a1);
+  return { id, name, kind, x0: from.x, y0: from.y, x1: to.x, y1: to.y };
+}
+
 /**
  * Land use. Order matters: the first zone containing a point wins, so the
- * smaller, more specific zones are listed before the broad ones.
+ * smaller, more specific places are listed before the broad residential blocks
+ * they sit inside.
  */
 export const TERRAIN_ZONES: TerrainZone[] = [
-  { id: 'garden', name: 'Community garden', kind: 'garden', x0: -200, y0: 40, x1: -60, y1: 170 },
-  { id: 'fern-finch', name: 'Fern & Finch courtyard', kind: 'commercial', x0: -20, y0: 40, x1: 200, y1: 170 },
-  { id: 'willow-gate', name: 'Willow Gate thicket', kind: 'woodland', x0: -200, y0: 190, x1: -40, y1: 400 },
-  { id: 'meadow', name: 'Riverside meadow', kind: 'open', x0: -20, y0: 190, x1: 220, y1: 400 },
-  { id: 'maple-park', name: 'Maple Park', kind: 'park', x0: -560, y0: 40, x1: -240, y1: 400 },
-  { id: 'east-ridge', name: 'East Ridge woods', kind: 'woodland', x0: 250, y0: 40, x1: 460, y1: 420 },
-  { id: 'hilltop', name: 'Hilltop Lookout', kind: 'open', x0: 490, y0: -430, x1: 590, y1: 420 },
-  { id: 'alder', name: 'Alder Street', kind: 'dense-housing', x0: -540, y0: -430, x1: -100, y1: -40 },
-  { id: 'oak-terrace', name: 'Oak Terrace', kind: 'dense-housing', x0: -80, y0: -430, x1: 300, y1: -40 },
-  { id: 'depot', name: 'Rail depot yard', kind: 'industrial', x0: 330, y0: -430, x1: 470, y1: -40 },
+  // The two commercial stretches: the old heart at Five Corners, and the strip
+  // along 48 Avenue with the grocery, the library and the coffee shops.
+  block('five-corners', 'Five Corners', 'commercial', 215.4, 47.6, 217.0, 48.5),
+  block('murrayville-shops', 'the 48 Avenue shops', 'commercial', 219.6, 47.6, 223.1, 48.0),
+
+  block('hospital', 'Langley Memorial Hospital', 'commercial', 219.9, 48.6, 221.3, 49.7),
+  block('wc-blair', 'W.C. Blair Recreation Centre', 'park', 221.5, 48.6, 222.9, 49.7),
+  block('activity-park', 'Murrayville Outdoor Activity Park', 'park', 221.0, 48.0, 222.2, 48.6),
+  block('james-hill', 'James Hill Elementary', 'school', 220.4, 49.9, 221.8, 50.6),
+  block('james-hill-park', 'James Hill Park', 'park', 220.4, 50.6, 222.0, 51.2),
+  block('old-yale-park', 'Old Yale Park', 'park', 216.5, 49.6, 218.0, 50.8),
+  block('arboretum', 'Derek Doubleday Arboretum', 'woodland', 217.3, 48.7, 218.9, 49.4),
+  block('credo', 'Credo Christian School', 'school', 218.2, 51.0, 219.4, 51.6),
+  block('cemetery', 'Murrayville Cemetery', 'garden', 213.4, 43.5, 214.8, 44.6),
+
+  // The civic block: the RCMP detachment on 48A, Fire Hall 6 on 50th, and the
+  // school district offices between them. Murrayville is the Township's
+  // administrative corner, which is why so much of it is parking.
+  block('civic', 'the civic block', 'commercial', 221.4, 49.8, 222.6, 50.6),
+  block('hall', 'Murrayville Hall', 'commercial', 216.4, 47.7, 217.1, 48.2),
+  block('fundamental', 'Langley Fundamental', 'school', 214.2, 50.6, 215.4, 51.2),
+
+  // The Nicomekl floodplain across the north — wet, open, and the one piece of
+  // ground round here that nobody has built on.
+  block('nicomekl', 'the Nicomekl floodplain', 'open', 212.9, 51.7, 223.1, 52.8),
+
+  // Everything else is houses.
+  block('houses-nw', 'the streets north of 48th', 'dense-housing', 212.9, 48.6, 215.9, 51.5),
+  block('houses-core', 'the old subdivision', 'dense-housing', 216.1, 48.6, 217.2, 49.5),
+  block('houses-mid', 'the streets behind the hospital', 'dense-housing', 218.3, 49.7, 220.2, 50.9),
+  block('houses-ne', 'the streets off Old Yale', 'dense-housing', 218.9, 50.1, 223.1, 51.5),
+  block('houses-sw', 'the streets south of 48th', 'dense-housing', 212.9, 44.8, 215.9, 47.5),
+  block('houses-se', 'the 46th Avenue blocks', 'dense-housing', 216.3, 44.8, 222.5, 47.5),
 ];
 
 /** Everything that gets in an animal's way. */
 export const BARRIERS: Barrier[] = [
   {
-    id: 'ridge-road',
-    name: 'Ridge Road',
+    id: 'fraser-highway',
+    name: 'Fraser Highway',
     kind: 'major-road',
-    path: [
-      { x: -600, y: -20 },
-      { x: -180, y: 0 },
-      { x: 220, y: 10 },
-      { x: 600, y: 40 },
-    ],
+    path: [at(212.5, 51.2), at(214.5, 49.9), at(216.3, 48.9), at(219, 48.75), at(221, 48.6), at(223.5, 48.4)],
   },
   {
-    id: 'north-creek',
-    name: 'North Creek',
+    id: '216-street',
+    name: '216 Street',
+    kind: 'major-road',
+    path: [at(216, 43), at(216, 53)],
+  },
+  {
+    id: '48-avenue',
+    name: '48 Avenue',
+    kind: 'major-road',
+    path: [at(212.5, 48), at(223.5, 48)],
+  },
+  {
+    // The oldest concrete road in the province, and still a through route.
+    id: 'old-yale-road',
+    name: 'Old Yale Road',
+    kind: 'major-road',
+    path: [at(216, 48), at(218, 49.3), at(221.4, 50.4), at(223.5, 51.1)],
+  },
+  {
+    id: 'nicomekl',
+    name: 'the Nicomekl River',
     kind: 'creek',
-    path: [
-      { x: -600, y: 300 },
-      { x: -330, y: 250 },
-      { x: -100, y: 215 },
-      { x: 140, y: 265 },
-      { x: 380, y: 235 },
-      { x: 600, y: 190 },
-    ],
-  },
-  {
-    id: 'rail',
-    name: 'Depot rail line',
-    kind: 'rail',
-    path: [
-      { x: 470, y: -450 },
-      { x: 480, y: 0 },
-      { x: 500, y: 450 },
-    ],
+    path: [at(212.5, 52.4), at(216, 52.0), at(220, 51.9), at(223.5, 52.3)],
   },
 ];
 
 /** Places that pull an animal in once it is hungry, thirsty or looking for cover. */
 export const ATTRACTORS: Attractor[] = [
-  { id: 'a-garden', name: 'Community garden compost', kind: 'food', at: { x: -130, y: 105 }, reach: 90, strength: 0.75 },
-  { id: 'a-bins', name: 'Fern & Finch bin alley', kind: 'food', at: { x: 90, y: 105 }, reach: 85, strength: 0.85 },
-  { id: 'a-creek', name: 'Creek shallows', kind: 'water', at: { x: -100, y: 215 }, reach: 110, strength: 0.6 },
-  { id: 'a-fountain', name: 'Maple Park fountain', kind: 'water', at: { x: -400, y: 220 }, reach: 90, strength: 0.5 },
-  { id: 'a-depot', name: 'Depot loading dock', kind: 'shelter', at: { x: 400, y: -235 }, reach: 100, strength: 0.55 },
-  { id: 'a-willow', name: 'Willow Gate culverts', kind: 'shelter', at: { x: -120, y: 300 }, reach: 95, strength: 0.7 },
+  { id: 'a-shops', name: 'the bins behind the 48th Avenue shops', kind: 'food', at: at(222.3, 48.1), reach: 110, strength: 0.85 },
+  { id: 'a-five-corners', name: 'the Five Corners patios', kind: 'food', at: at(216.2, 48.1), reach: 95, strength: 0.7 },
+  { id: 'a-nicomekl', name: 'the Nicomekl shallows', kind: 'water', at: at(216.5, 52.0), reach: 150, strength: 0.65 },
+  { id: 'a-old-yale', name: 'the Old Yale Park off-leash field', kind: 'familiar', at: at(217.3, 50.2), reach: 130, strength: 0.75 },
+  { id: 'a-cemetery', name: 'the cemetery hedges', kind: 'shelter', at: at(214.1, 44.1), reach: 100, strength: 0.6 },
+  { id: 'a-hospital', name: 'the hospital loading bay', kind: 'shelter', at: at(220.6, 49.2), reach: 90, strength: 0.5 },
 ];
 
-/** Named waypoints used for human-readable directions. */
-export const LANDMARKS: { id: string; name: string; at: Vec }[] = [
-  { id: 'willow-gate', name: 'Willow Gate', at: { x: -120, y: 190 } },
-  { id: 'maple-north', name: 'Maple Park north gate', at: { x: -400, y: 380 } },
-  { id: 'maple-south', name: 'Maple Park south lawn', at: { x: -400, y: 90 } },
-  { id: 'garden', name: 'the community garden', at: { x: -130, y: 105 } },
-  { id: 'fern-finch', name: 'Fern & Finch courtyard', at: { x: 90, y: 105 } },
-  { id: 'creek-bend', name: 'the creek bend', at: { x: 140, y: 265 } },
-  { id: 'east-ridge', name: 'East Ridge trailhead', at: { x: 355, y: 230 } },
-  { id: 'alder', name: 'Alder Street', at: { x: -320, y: -235 } },
-  { id: 'oak-terrace', name: 'Oak Terrace', at: { x: 110, y: -235 } },
-  { id: 'depot', name: 'the rail depot', at: { x: 400, y: -235 } },
-  { id: 'hilltop', name: 'Hilltop Lookout', at: { x: 540, y: 0 } },
+/** Named waypoints used for human-readable directions, and for "roughly where you walk". */
+export const LANDMARKS: { id: string; name: string; short: string; at: Vec }[] = [
+  // `short` is what fits on the map; `name` is what a person says out loud.
+  { id: 'five-corners', name: 'Five Corners', short: 'Five Corners', at: at(216, 48) },
+  { id: 'murrayville-shops', name: 'the 48th Avenue shops', short: '48th Ave shops', at: at(222.3, 48.1) },
+  { id: 'library', name: 'Murrayville Library', short: 'Library', at: at(220.7, 48.1) },
+  { id: 'hospital', name: 'Langley Memorial Hospital', short: 'Hospital', at: at(220.5, 49.1) },
+  { id: 'wc-blair', name: 'W.C. Blair Recreation Centre', short: 'W.C. Blair', at: at(222.2, 49.1) },
+  { id: 'activity-park', name: 'Murrayville Outdoor Activity Park', short: 'Activity Park', at: at(221.6, 48.3) },
+  { id: 'james-hill-park', name: 'James Hill Park', short: 'James Hill Park', at: at(221.1, 50.9) },
+  { id: 'old-yale-park', name: 'Old Yale Park', short: 'Old Yale Park', at: at(217.2, 50.2) },
+  { id: 'arboretum', name: 'Derek Doubleday Arboretum', short: 'Arboretum', at: at(218.1, 49.0) },
+  { id: 'nicomekl', name: 'the Nicomekl trail', short: 'Nicomekl trail', at: at(216.5, 51.9) },
+  { id: 'cemetery', name: 'Murrayville Cemetery', short: 'Cemetery', at: at(214.1, 44.1) },
+  { id: 'hall', name: 'Murrayville Hall', short: 'The Hall', at: at(216.7, 47.9) },
 ];
 
 export function zoneAt(p: Vec): TerrainZone | null {

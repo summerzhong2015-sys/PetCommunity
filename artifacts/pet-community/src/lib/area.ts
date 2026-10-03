@@ -92,7 +92,7 @@ export function roughMetres(metres: number): string {
   return `${Math.max(AREA_STEP, Math.round(metres / 50) * 50)} m`;
 }
 
-/** The pin, in words: "right by the creek bend", "300 m south of Alder Street". */
+/** The pin, in words: "right by the Nicomekl trail", "300 m south of 216 Street". */
 export function describeArea(point: Vec): string {
   const landmark = nearestLandmark(point);
   if (landmark.metres <= AT_LANDMARK_METRES) return `right by ${landmark.name}`;

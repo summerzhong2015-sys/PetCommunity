@@ -95,3 +95,69 @@ function lowerFirst(text: string): string {
   if (/^[A-Z][a-z]/.test(text)) return text[0].toLowerCase() + text.slice(1);
   return text;
 }
+
+/**
+ * What happens after a campaign is met.
+ *
+ * A funded campaign should not sit at the top of the page forever — it is
+ * finished, and leaving it there buries the ones that still need money. But it
+ * should not vanish the instant the last pound lands either: people who gave
+ * want to see it land, and the people running it want a moment to say thank
+ * you. So it stays for three days and then goes.
+ *
+ * It leaves the page, not the record. Anything given to it is still in the
+ * giving history afterwards.
+ */
+export const WIND_DOWN_DAYS = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+export const WIND_DOWN_MS = WIND_DOWN_DAYS * DAY_MS;
+
+export type WindDown = {
+  /** When the goal was met. */
+  metAt: number;
+  /** When it leaves the page. */
+  endsAt: number;
+  msLeft: number;
+  gone: boolean;
+};
+
+export type Contribution = { amount: number; at: number };
+
+/**
+ * The moment the goal was met, or null if it has not been.
+ *
+ * Contributions are replayed oldest first on top of whatever the campaign had
+ * already raised, so the answer is the timestamp of the one that crossed the
+ * line — not the latest one, and not now.
+ */
+export function metAt(goal: number, alreadyRaised: number, contributions: Contribution[], now = Date.now()): number | null {
+  const safeGoal = Math.max(1, Math.round(goal));
+  let total = Math.max(0, Math.round(alreadyRaised));
+  // Already over the line before anybody here gave: it was met at some point
+  // we were never told about, so the clock starts now rather than in the past.
+  if (total >= safeGoal) return now;
+
+  const inOrder = [...contributions].filter((c) => Number.isFinite(c.at) && Number.isFinite(c.amount)).sort((a, b) => a.at - b.at);
+  for (const contribution of inOrder) {
+    total += Math.max(0, Math.round(contribution.amount));
+    if (total >= safeGoal) return contribution.at;
+  }
+  return null;
+}
+
+export function windDown(met: number | null, now = Date.now()): WindDown | null {
+  if (met === null || !Number.isFinite(met)) return null;
+  const endsAt = met + WIND_DOWN_MS;
+  return { metAt: met, endsAt, msLeft: Math.max(0, endsAt - now), gone: now >= endsAt };
+}
+
+/** The countdown, in the words a person would use. Blunt on purpose. */
+export function describeWindDown(state: WindDown | null): string {
+  if (!state) return '';
+  if (state.gone) return 'Closed';
+  const hours = state.msLeft / (60 * 60 * 1000);
+  if (hours < 1) return 'Leaving the page within the hour';
+  if (hours < 24) return `Leaving the page in ${Math.round(hours)} hour${Math.round(hours) === 1 ? '' : 's'}`;
+  const days = Math.ceil(hours / 24);
+  return `Leaving the page in ${days} day${days === 1 ? '' : 's'}`;
+}

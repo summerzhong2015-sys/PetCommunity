@@ -10,7 +10,7 @@
  */
 
 import { CAMPAIGNS, PRESET_AMOUNTS } from './giving-data.ts';
-import { describeNext, fundingOf, nextItem, suggestedAmounts } from './funding.ts';
+import { describeNext, fundingOf, nextItem, suggestedAmounts , WIND_DOWN_DAYS, describeWindDown, metAt, windDown } from './funding.ts';
 
 let pass = 0, fail = 0;
 const out: string[] = [];
@@ -129,6 +129,58 @@ for (const campaign of CAMPAIGNS) {
   if (f.remaining > 0) {
     check(`${campaign.title}: there is a line to point at`, nextItem(campaign.breakdown, campaign.raised) !== null);
   }
+}
+
+// --- a funded campaign comes off the page after three days ---------------
+// It should not vanish the moment the last pound lands — people who gave want
+// to see it land — and it should not sit there forever once it is paid for.
+{
+  const DAY = 24 * 60 * 60 * 1000;
+  const now = 1_000_000_000_000;
+
+  check('three days is three days', WIND_DOWN_DAYS === 3);
+  check('a campaign still short has no clock running', metAt(1000, 400, [{ amount: 100, at: now }], now) === null);
+  check('nothing given and nothing raised leaves it open', metAt(1000, 0, [], now) === null);
+
+  // The clock starts on the contribution that crossed the line, not the last one.
+  const crossed = metAt(1000, 800, [
+    { amount: 50, at: now - 5 * DAY },
+    { amount: 200, at: now - 4 * DAY },
+    { amount: 25, at: now - 1 * DAY },
+  ], now);
+  check('the clock starts when the goal was met', crossed === now - 4 * DAY, String(crossed));
+  check('contributions out of order are still replayed in order',
+    metAt(1000, 800, [
+      { amount: 25, at: now - 1 * DAY },
+      { amount: 200, at: now - 4 * DAY },
+      { amount: 50, at: now - 5 * DAY },
+    ], now) === now - 4 * DAY);
+  check('exactly meeting the goal counts as met', metAt(1000, 900, [{ amount: 100, at: now }], now) === now);
+  check('rubbish contributions do not start a clock',
+    metAt(1000, 900, [{ amount: Number.NaN, at: now }, { amount: 100, at: Number.NaN }], now) === null);
+
+  // One already over the goal before anyone here gave: we were never told when
+  // that happened, so it gets its three days from now rather than vanishing.
+  check('a campaign already over its goal starts its three days now',
+    metAt(1000, 1200, [], now) === now);
+
+  const fresh = windDown(now - 2 * DAY, now);
+  check('two days in, it is still on the page', fresh !== null && !fresh.gone);
+  check('two days in, one day is left', fresh !== null && Math.round(fresh.msLeft / DAY) === 1);
+  const over = windDown(now - 3 * DAY, now);
+  check('at three days it is gone', over !== null && over.gone);
+  check('well past three days it stays gone', windDown(now - 90 * DAY, now)!.gone);
+  check('a campaign still asking has no wind-down at all', windDown(null, now) === null);
+
+  check('a day out reads in days', describeWindDown(windDown(now - 2 * DAY, now)) === 'Leaving the page in 1 day',
+    describeWindDown(windDown(now - 2 * DAY, now)));
+  check('hours read in hours',
+    /^Leaving the page in \d+ hours$/.test(describeWindDown(windDown(now - 2.6 * DAY, now))),
+    describeWindDown(windDown(now - 2.6 * DAY, now)));
+  check('the last stretch reads plainly',
+    describeWindDown(windDown(now - (3 * DAY - 1000), now)) === 'Leaving the page within the hour');
+  check('a gone campaign says so', describeWindDown(windDown(now - 10 * DAY, now)) === 'Closed');
+  check('nothing to describe is an empty string', describeWindDown(null) === '');
 }
 
 console.log(out.join('\n'));

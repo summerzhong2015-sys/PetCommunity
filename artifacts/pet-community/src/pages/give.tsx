@@ -26,7 +26,10 @@ import {
 } from 'lucide-react';
 import { PetPhoto } from '@/components/pet-photo';
 import { CountUp, PageHeader, ProgressBar, Stat, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
-import { describeNext, fundingOf, nextItem, suggestedAmounts } from '@/lib/funding';
+import {
+  describeNext, describeWindDown, fundingOf, metAt, nextItem, suggestedAmounts, windDown,
+  type WindDown,
+} from '@/lib/funding';
 import {
   CAMPAIGNS,
   CAMPAIGN_LABEL,
@@ -62,11 +65,22 @@ export function Give({ notify }: { notify: Notify }) {
   const [showHistory, setShowHistory] = useState(false);
   const [donations, setDonations] = useStored<Donation[]>('pc-donations', []);
 
+  /** How long a funded campaign has left on the page, or null if it is still asking. */
+  function windDownFor(campaign: Campaign) {
+    const mine = donations.filter((d) => d.campaignId === campaign.id);
+    return windDown(metAt(campaign.goal, campaign.raised, mine));
+  }
+
   const shown = useMemo(
-    () => (filter === 'all' ? CAMPAIGNS : CAMPAIGNS.filter((c) => c.kind === filter)),
-    [filter],
+    () => {
+      const byKind = filter === 'all' ? CAMPAIGNS : CAMPAIGNS.filter((c) => c.kind === filter);
+      // A campaign that was funded more than three days ago has done its job
+      // and comes off the page. What was given to it stays in the history.
+      return byKind.filter((c) => !windDownFor(c)?.gone);
+    },
+    [filter, donations],
   );
-  const open = CAMPAIGNS.find((c) => c.id === openId) ?? null;
+  const open = shown.find((c) => c.id === openId) ?? null;
 
   const given = donations.reduce((sum, d) => sum + d.amount, 0);
   const supported = new Set(donations.map((d) => d.campaignId)).size;
@@ -219,6 +233,7 @@ export function Give({ notify }: { notify: Notify }) {
             const yours = yourShareOf(campaign.id);
             const funding = fundingOf(campaign.goal, raised);
             const pct = funding.percent;
+            const leaving = windDownFor(campaign);
             return (
               <article
                 key={campaign.id}
@@ -300,7 +315,13 @@ export function Give({ notify }: { notify: Notify }) {
                   </p>
                 )}
 
-                {campaign.matchNote && (
+                {leaving && !leaving.gone && (
+                  <p className="text-xs mt-4 inline-flex items-start gap-1.5 text-muted-foreground" data-testid={`wind-down-${campaign.id}`}>
+                    <Clock3 size={13} className="shrink-0 mt-0.5" /> {describeWindDown(leaving)}
+                  </p>
+                )}
+
+                {campaign.matchNote && !leaving && (
                   <p className="text-xs mt-4 inline-flex items-start gap-1.5 text-primary">
                     <BadgeCheck size={13} className="shrink-0 mt-0.5" /> {campaign.matchNote}
                   </p>
@@ -332,6 +353,7 @@ export function Give({ notify }: { notify: Notify }) {
             raised={raisedFor(open)}
             donors={donorsFor(open)}
             yours={yourShareOf(open.id)}
+            leaving={windDownFor(open)}
             onClose={() => setOpenId(null)}
             onGive={(amount, recurring) => record(open, amount, recurring)}
           />
@@ -358,6 +380,7 @@ function CampaignDetail({
   raised,
   donors,
   yours,
+  leaving,
   onClose,
   onGive,
 }: {
@@ -365,6 +388,8 @@ function CampaignDetail({
   raised: number;
   donors: number;
   yours: number;
+  /** Set once the goal is met: how long it has left on the page. */
+  leaving: WindDown | null;
   onClose: () => void;
   onGive: (amount: number, recurring: boolean) => void;
 }) {
@@ -470,6 +495,15 @@ function CampaignDetail({
             {yours > 0 && (
               <p className="text-xs text-primary mt-1.5" data-testid={`panel-your-share-${campaign.id}`}>
                 {money(yours)} of that came from you.
+              </p>
+            )}
+            {leaving && !leaving.gone && (
+              <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5" data-testid="panel-wind-down">
+                <Clock3 size={13} className="shrink-0 mt-0.5" />
+                <span>
+                  {describeWindDown(leaving)}. It is paid for, so it comes down and makes room for the ones that are
+                  not. Anything you gave stays in your giving history.
+                </span>
               </p>
             )}
 

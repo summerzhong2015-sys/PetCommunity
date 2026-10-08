@@ -92,7 +92,7 @@ export function Adopt({ notify }: { notify: Notify }) {
             <em className="text-primary not-italic">somebody&rsquo;s dog already.</em>
           </>
         }
-        description="Animals in care with the shelters and rescues around here. The write-ups are honest — including the difficult bits — because the wrong match helps nobody."
+        description="Animals waiting with the shelters and rescues round here. The write-ups say the hard parts out loud, because taking one home and bringing it back helps nobody \u2014 least of all them."
         action={
           <Link href="/shelters" className="action-button button-quiet" data-testid="link-shelters">
             <Home size={16} /> Visit the shelters

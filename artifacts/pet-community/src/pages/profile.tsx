@@ -137,7 +137,7 @@ export function Profile({
             <em className="text-primary not-italic">four-legged hellos.</em>
           </>
         }
-        description="Build a likeness instead of hunting for a photo, add a few words, and see exactly how it lands before you save."
+        description="Draw something that looks like them, or use a photo if you have one handy. Add a line or two, and watch how it will look to everyone else as you go."
       />
 
       <section className="page-wrap pb-12">
@@ -284,8 +284,8 @@ export function Profile({
               <div className="mt-6 pt-5 border-t border-border/70">
                 <p className="eyebrow mb-1">Frame it</p>
                 <p className="text-[11px] text-muted-foreground mb-3">
-                  Goes around the picture wherever you turn up. It picks up each
-                  tab&rsquo;s colour as you move about.
+                  Follows your picture around the app, and quietly takes on the
+                  colour of whatever page you are on.
                 </p>
                 <div className="flex flex-wrap gap-2.5">
                   {FRAMES.map((option) => (
@@ -386,9 +386,9 @@ export function Profile({
                   )}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1 mb-3 leading-relaxed">
-                  A real map of Murrayville &mdash; find your corner and tap it. Whatever you tap is rounded to the
-                  nearest 50 metres before it is saved, which is what the circle shows, and neighbours only ever see
-                  the landmark name &mdash; never the pin. Nothing here reads your device&rsquo;s location.
+                  Find the corner you usually set off from and tap it. It gets rounded to the nearest 50 metres before
+                  it is saved &mdash; that is what the circle is &mdash; and what neighbours see is the landmark name,
+                  never the pin. Nothing here asks your phone where you are.
                 </p>
                 <AreaPicker area={form.area} onPick={setArea} />
                 <div className="flex flex-wrap gap-1.5 mt-3">

@@ -171,7 +171,7 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
             <em className="text-destructive not-italic">home.</em>
           </>
         }
-        description="Every alert comes with a search map that works out where they most likely are, and updates as neighbours report sightings."
+        description="The first hour matters most. Every alert comes with a map of where they have most likely gone, and it redraws itself each time somebody reports a sighting."
         action={
           <button
             className="action-button button-danger"

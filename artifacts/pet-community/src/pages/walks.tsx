@@ -102,7 +102,7 @@ export function Walks({ notify }: { notify: Notify }) {
             <em className="text-primary not-italic">little local lore.</em>
           </>
         }
-        description="Familiar loops, honest details, and a peek at who is out there now. Open a route for the surface underfoot, the stops along the way, and what neighbours say to watch for."
+        description="The loops people round here actually do, with the bits you only find out by walking them \u2014 where it floods, where the shade is, which half hour to avoid. Open one and see."
       />
 
       <section className="page-wrap pb-10">

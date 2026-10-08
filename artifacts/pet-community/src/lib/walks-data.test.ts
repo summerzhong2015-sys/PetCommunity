@@ -63,8 +63,16 @@ for (const walk of defaultWalks) {
     new Set(walk.notes.map((n) => n.by)).size === walk.notes.length);
 }
 
-check('every route is drawn as a different place',
-  new Set(defaultWalks.map((w) => w.scene)).size === defaultWalks.length,
+// There are more routes than there are drawings, and that is fine: the drawing
+// is the fallback behind the photograph, not the thing that tells routes apart.
+// The photographs are what has to be distinct.
+check('no two routes share a photograph',
+  new Set(defaultWalks.filter((w) => w.photo).map((w) => w.photo)).size ===
+    defaultWalks.filter((w) => w.photo).length,
+  defaultWalks.map((w) => w.photo).join(' '));
+check('every route has a photograph', defaultWalks.every((w) => Boolean(w.photo)));
+check('the drawings are not all the same one',
+  new Set(defaultWalks.map((w) => w.scene)).size >= 2,
   defaultWalks.map((w) => w.scene).join(' '));
 
 // Routes should read as different places, not one place described three ways.

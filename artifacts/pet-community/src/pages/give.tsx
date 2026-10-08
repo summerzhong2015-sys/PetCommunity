@@ -119,7 +119,7 @@ export function Give({ notify }: { notify: Notify }) {
             <em className="text-primary not-italic">where you can see them land.</em>
           </>
         }
-        description="Every campaign here is for an animal, a person or a building within a few streets of you — and every one shows exactly where the money goes."
+        description="An animal, a person or a building within a few streets of you. Every one shows where the money goes, line by line, so you are not taking anybody\u2019s word for it."
       />
 
       <section className="page-wrap pb-12 space-y-5">

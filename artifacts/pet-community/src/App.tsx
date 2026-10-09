@@ -24,6 +24,8 @@ import { Adopt, Shelters } from '@/pages/adopt';
 import { Give } from '@/pages/give';
 import { LostPets } from '@/pages/lost-pets';
 import { allCases } from '@/lib/lost-pet-data';
+import { useShared } from '@/components/use-shared';
+import { visitorId } from '@/lib/visitor';
 import { LostPetSearch } from '@/pages/lost-pet-search';
 import { Profile } from '@/pages/profile';
 import { Walks } from '@/pages/walks';
@@ -231,9 +233,39 @@ function Shell({ children, notice, setNotice, profile }: { children: ReactNode; 
 function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetProfile }) {
   const [filter, setFilter] = useState('All activity');
   const [loading, setLoading] = useState(true);
-  const [posts, setPosts] = useStored<Post[]>('pc_posts', defaultPosts);
+  // The feed everybody writes to. Seed posts stay underneath so the page is
+  // never empty for somebody arriving first.
+  const { items: sharedPosts, add: addSharedPost, status: feedStatus } = useShared('posts');
+  const { items: sharedComments, add: addSharedComment } = useShared('comments');
+  const me = visitorId();
+  const posts = useMemo<Post[]>(() => {
+    const written = [...sharedPosts]
+      .sort((a, b) => (typeof b.at === 'number' ? b.at : 0) - (typeof a.at === 'number' ? a.at : 0))
+      .map((item): Post => ({
+        id: item.id,
+        author: typeof item.author === 'string' ? item.author : 'A neighbour',
+        initials: typeof item.initials === 'string' ? item.initials : 'NN',
+        petType: item.petType === 'cat' ? 'cat' : 'dog',
+        portrait: (item.portrait as Post['portrait']) ?? undefined,
+        mine: item.by === me,
+        time: 'Just now',
+        body: typeof item.body === 'string' ? item.body : '',
+        tag: typeof item.tag === 'string' ? item.tag : 'Around here',
+        likes: 0,
+        comments: [],
+        accent: 'sage',
+      }));
+    return [...written, ...defaultPosts];
+  }, [sharedPosts, me]);
   const [likes, setLikes] = useStored<string[]>('pc_likes', []);
-  const [comments, setComments] = useStored<Record<string, string[]>>('pc_comments', {});
+  // Comments are shared too, grouped by the post they belong to.
+  const commentsFor = useCallback(
+    (postId: string) =>
+      sharedComments
+        .filter((c) => c.postId === postId && typeof c.text === 'string')
+        .sort((a, b) => (typeof a.at === 'number' ? a.at : 0) - (typeof b.at === 'number' ? b.at : 0)),
+    [sharedComments],
+  );
   const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -250,8 +282,12 @@ function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetPr
       const result = await review(text);
       if (result.level !== 'clean') { setPostVerdict(result); return; }
     }
-    const newPost: Post = { id: `p-${Date.now()}`, author: profile.username, initials: profile.username.slice(0, 2).toUpperCase(), petType: profile.petType, portrait: profile.portrait, avatar: profile.avatar, mine: true, time: 'Just now', body: text, tag: profile.neighbourhood, likes: 0, comments: [], accent: 'sage' };
-    setPosts(current => [newPost, ...current]); setDraft(''); setPostVerdict(null); setComposerOpen(false); notify({ tone: 'success', text: 'Posted to your neighborhood.' });
+    // The drawn portrait travels with the post; a photograph does not. A
+    // profile photo is yours and is large, and neither belongs on a server
+    // nobody has signed in to.
+    void addSharedPost({ author: profile.username, initials: profile.username.slice(0, 2).toUpperCase(), petType: profile.petType, portrait: profile.portrait as unknown as Record<string, unknown>, body: text, tag: profile.neighbourhood, by: me });
+    setDraft(''); setPostVerdict(null); setComposerOpen(false);
+    notify({ tone: 'success', text: feedStatus === 'shared' ? 'Posted. Your neighbours will see it.' : 'Posted. It is in this browser until the shared feed is reachable.' });
   };
   const addComment = (event: FormEvent, postId: string) => {
     event.preventDefault(); const text = commentDrafts[postId]?.trim(); if (!text) return;
@@ -259,7 +295,9 @@ function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetPr
     // other people see, so the rule is enforced here too rather than only in
     // the markup.
     if (posts.find(p => p.id === postId)?.mine) return;
-    setComments(current => ({ ...current, [postId]: [...(current[postId] || []), text] })); setCommentDrafts(current => ({ ...current, [postId]: '' })); notify({ tone: 'success', text: 'Comment added.' });
+    void addSharedComment({ postId, text, by: me, author: profile.username });
+    setCommentDrafts(current => ({ ...current, [postId]: '' }));
+    notify({ tone: 'success', text: 'Comment added.' });
   };
   return <main>
     <PageHeader eyebrow="Tuesday · 11 June · Murrayville" title={<>A good day to say <em className="text-primary not-italic">hello.</em></>} description="The friendly corner of your neighborhood for four-legged hellos, useful tips, and the occasional tennis ball mystery." action={<button className="action-button button-accent" onClick={() => setComposerOpen(v => !v)} data-testid="button-create-post"><Plus size={17} /> Start a post</button>} />
@@ -284,12 +322,12 @@ function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetPr
         <div className="flex items-center gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Feed filters">{['All activity', 'Nearby', 'Lost pets'].map(item => <button key={item} onClick={() => setFilter(item)} role="tab" aria-selected={filter === item} className={`action-button whitespace-nowrap !min-h-9 !py-2 !px-3 text-xs ${filter === item ? 'button-primary' : 'button-quiet'}`} data-testid={`button-filter-${item.toLowerCase().replace(' ', '-')}`}>{item}{item === 'Lost pets' && <span className="w-1.5 h-1.5 rounded-full bg-destructive" />}</button>)}</div>
      {composerOpen && <form onSubmit={addPost} className="paper-card p-4 reveal" data-testid="form-create-post"><div className="flex gap-3"><FramedAvatar frame={normaliseFrame(profile.frame)} className="w-10 h-10 shrink-0"><PetPhoto src={profile.avatar} portrait={profile.portrait} alt={profile.petName} className="w-full h-full" /></FramedAvatar><div className="flex-1"><label htmlFor="post-body" className="sr-only">Post to your neighborhood</label><textarea id="post-body" className="field min-h-24 resize-y" autoFocus value={draft} onChange={e => { setDraft(e.target.value); if (postVerdict?.level === 'block') setPostVerdict(null); }} placeholder="Share a small neighborhood update..." data-testid="input-post-body" />{postVerdict && postVerdict.level !== 'clean' && <p className={`text-sm mt-2 flex items-start gap-2 ${postVerdict.level === 'block' ? 'text-destructive' : 'text-muted-foreground'}`} role="alert" data-testid="notice-post-moderation">{postVerdict.level === 'block' ? <AlertTriangle size={15} className="shrink-0 mt-0.5" /> : <Info size={15} className="shrink-0 mt-0.5 text-primary" />}<span>{postVerdict.reason}{postVerdict.level === 'warn' && <em className="not-italic block text-xs mt-1">Press publish again to post it anyway.</em>}</span></p>}<div className="flex justify-end gap-2 mt-3"><button type="button" className="action-button button-quiet" onClick={() => setComposerOpen(false)} data-testid="button-cancel-post">Cancel</button><button type="submit" className="action-button button-primary" data-testid="button-submit-post">Publish post</button></div></div></div></form>}
         {(() => { const shownPosts = feedShowAll ? filtered : filtered.slice(0, 4); const morePosts = filtered.length - shownPosts.length; return <>{loading ? <div className="space-y-4" role="status" aria-label="Loading neighborhood activity" data-testid="status-loading-feed">{[1, 2, 3].map(item => <div key={item} className="paper-card p-5" aria-hidden="true"><div className="flex gap-3"><div className="skeleton w-10 h-10 rounded-full" /><div className="flex-1 space-y-3"><div className="skeleton h-3 w-32" /><div className="skeleton h-3 w-20" /><div className="skeleton h-16 w-full mt-5" /></div></div></div>)}</div> : filtered.length === 0 ? <EmptyState title="A quiet corner for now" copy="No lost-pet posts in this filter. If you spot something, sharing quickly can make a real difference." icon={BellRing} /> : shownPosts.map((post, index) => {
-          const postComments = [...post.comments, ...(comments[post.id] || [])];
+          const postComments = [...post.comments.map(text => ({ id: `${post.id}-seed-${text.slice(0, 8)}`, text, author: 'Neighbor' })), ...commentsFor(post.id).map(c => ({ id: c.id, text: String(c.text), author: typeof c.author === 'string' ? c.author : 'A neighbour' }))];
           return <article key={post.id} className={`paper-card p-5 reveal reveal-delay-${Math.min(index + 1, 3)}`} data-testid={`card-post-${post.id}`}>
              <div className="flex gap-3">{post.mine || post.avatar || post.portrait ? <FramedAvatar frame={post.mine ? normaliseFrame(profile.frame) : 'none'} className="w-10 h-10 shrink-0"><PetPhoto src={post.mine ? profile.avatar : post.avatar} portrait={post.mine ? profile.portrait : post.portrait} alt={post.author} className="w-full h-full" /></FramedAvatar> : post.petType ? <PetAvatar type={post.petType} /> : <Avatar initials={post.initials} />}<div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-sm" data-testid={`text-post-author-${post.id}`}>{post.author}</p><p className="text-xs text-muted-foreground mt-0.5">{post.time} <span className="mx-1">·</span> neighbors only</p></div><button onClick={() => notify({ tone: 'info', text: 'Posts are shared only with your local circle.' })} className="text-muted-foreground p-1" aria-label={`More options for ${post.author}`} data-testid={`button-post-more-${post.id}`}><span className="text-lg leading-none">···</span></button></div>
               {post.title && <h2 className="serif text-xl mt-4">{post.title}</h2>}<p className="mt-2 prose-note">{post.body}</p><span className="tag mt-4">{post.tag}</span>
               <div className="flex items-center gap-5 border-t border-border mt-5 pt-3 text-xs text-muted-foreground"><button onClick={() => setLikes(current => current.includes(post.id) ? current.filter(id => id !== post.id) : [...current, post.id])} className={`inline-flex items-center gap-1.5 ${likes.includes(post.id) ? 'text-destructive' : 'hover:text-destructive'}`} aria-label={`${likes.includes(post.id) ? 'Unlike' : 'Like'} ${post.author}'s post`} data-testid={`button-like-post-${post.id}`}><Heart size={16} fill={likes.includes(post.id) ? 'currentColor' : 'none'} />{post.likes + (likes.includes(post.id) ? 1 : 0)}</button><button onClick={() => document.getElementById(`comment-${post.id}`)?.focus()} disabled={post.mine} className={`inline-flex items-center gap-1.5 ${post.mine ? 'cursor-default' : 'hover:text-primary'}`} aria-label={post.mine ? `${postComments.length} replies to your post` : `Comment on ${post.author}'s post`} data-testid={`button-comment-post-${post.id}`}><MessageSquare size={16} />{postComments.length}</button><span className="ml-auto inline-flex items-center gap-1"><MapPin size={13} /> 2 km circle</span></div>
-              {postComments.length > 0 && <div className="mt-3 space-y-2">{postComments.map((comment, i) => <p key={`${post.id}-comment-${i}`} className="text-xs bg-secondary rounded-lg px-3 py-2"><strong className="mr-1">Neighbor</strong>{comment}</p>)}</div>}
+              {postComments.length > 0 && <div className="mt-3 space-y-2">{postComments.map(comment => <p key={comment.id} className="text-xs bg-secondary rounded-lg px-3 py-2"><strong className="mr-1">{comment.author}</strong>{comment.text}</p>)}</div>}
               {/* Your own post is not a place to talk to yourself. Edit it
                   instead of replying to it. */}
               {post.mine

@@ -25,7 +25,10 @@ import {
   X,
 } from 'lucide-react';
 import { PetPhoto } from '@/components/pet-photo';
-import { CountUp, PageHeader, ProgressBar, Stat, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
+import { CountUp, PageHeader, ProgressBar, Stat, useRevealWhen, type Notify } from '@/components/page-bits';
+import { useShared } from '@/components/use-shared';
+import { type SharedItem } from '@/lib/shared';
+import { visitorId } from '@/lib/visitor';
 import {
   describeNext, describeWindDown, fundingOf, metAt, nextItem, suggestedAmounts, windDown,
   type WindDown,
@@ -40,7 +43,22 @@ import {
   type CampaignKind,
 } from '@/lib/giving-data';
 
-type Donation = { campaignId: string; amount: number; at: number; recurring: boolean };
+type Donation = { id: string; campaignId: string; amount: number; at: number; recurring: boolean; by: string };
+
+/** A shared row, read back into something this page can use. */
+function asDonation(item: SharedItem): Donation | null {
+  const campaignId = typeof item.campaignId === 'string' ? item.campaignId : null;
+  const amount = typeof item.amount === 'number' && Number.isFinite(item.amount) ? Math.max(0, Math.round(item.amount)) : null;
+  if (!campaignId || amount === null) return null;
+  return {
+    id: item.id,
+    campaignId,
+    amount,
+    at: typeof item.at === 'number' ? item.at : 0,
+    recurring: item.recurring === true,
+    by: typeof item.by === 'string' ? item.by : '',
+  };
+}
 
 const KIND_ICON: Record<CampaignKind, typeof Heart> = {
   shelter: Building2,
@@ -63,12 +81,21 @@ export function Give({ notify }: { notify: Notify }) {
   const [filter, setFilter] = useState<CampaignKind | 'all'>('all');
   const [openId, setOpenId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [donations, setDonations] = useStored<Donation[]>('pc-donations', []);
+  // Everybody's contributions, not just this browser's. A total that only
+  // moves for the person who moved it was the thing that made this page feel
+  // like a demo.
+  const { items: shared, add: recordShared, status: sharing } = useShared('donations');
+  const everyDonation = useMemo(
+    () => shared.map(asDonation).filter((d): d is Donation => d !== null).sort((a, b) => b.at - a.at),
+    [shared],
+  );
+  const me = visitorId();
+  const donations = useMemo(() => everyDonation.filter((d) => d.by === me), [everyDonation, me]);
 
   /** How long a funded campaign has left on the page, or null if it is still asking. */
   function windDownFor(campaign: Campaign) {
-    const mine = donations.filter((d) => d.campaignId === campaign.id);
-    return windDown(metAt(campaign.goal, campaign.raised, mine));
+    const all = everyDonation.filter((d) => d.campaignId === campaign.id);
+    return windDown(metAt(campaign.goal, campaign.raised, all));
   }
 
   const shown = useMemo(
@@ -78,30 +105,38 @@ export function Give({ notify }: { notify: Notify }) {
       // and comes off the page. What was given to it stays in the history.
       return byKind.filter((c) => !windDownFor(c)?.gone);
     },
-    [filter, donations],
+    [filter, everyDonation],
   );
   const open = shown.find((c) => c.id === openId) ?? null;
 
   const given = donations.reduce((sum, d) => sum + d.amount, 0);
   const supported = new Set(donations.map((d) => d.campaignId)).size;
 
-  /** What this browser has put into one campaign. */
+  /** What you have put into one campaign. Everyone else's is counted separately. */
   function yourShareOf(campaignId: string): number {
     return donations.filter((d) => d.campaignId === campaignId).reduce((s, d) => s + d.amount, 0);
   }
 
-  /** Contributions made in this browser are added on top of the campaign's standing total. */
-  function raisedFor(campaign: Campaign): number {
-    return campaign.raised + yourShareOf(campaign.id);
+  /** What the neighbourhood has put in since the campaign's published total. */
+  function neighbourShareOf(campaignId: string): number {
+    return everyDonation.filter((d) => d.campaignId === campaignId).reduce((s, d) => s + d.amount, 0);
   }
 
-  /** You count as a neighbour once you have given, however many times. */
+  /** Everything given since the campaign's published total, by anybody. */
+  function raisedFor(campaign: Campaign): number {
+    return campaign.raised + neighbourShareOf(campaign.id);
+  }
+
+  /** One neighbour is one neighbour, however many times they gave. */
   function donorsFor(campaign: Campaign): number {
-    return campaign.donors + (yourShareOf(campaign.id) > 0 ? 1 : 0);
+    const people = new Set(
+      everyDonation.filter((d) => d.campaignId === campaign.id && d.by !== '').map((d) => d.by),
+    );
+    return campaign.donors + people.size;
   }
 
   function record(campaign: Campaign, amount: number, recurring: boolean) {
-    setDonations([{ campaignId: campaign.id, amount, at: Date.now(), recurring }, ...donations]);
+    void recordShared({ campaignId: campaign.id, amount, recurring, by: me });
     notify({
       tone: 'success',
       text: `${money(amount)}${recurring ? ' a month' : ''} recorded for ${campaign.beneficiary}. This is a demonstration — no payment was taken.`,
@@ -133,6 +168,17 @@ export function Give({ notify }: { notify: Notify }) {
         </div>
 
         {/* Your giving */}
+        <p className="text-[11px] text-muted-foreground mb-4 flex items-center gap-1.5" data-testid="text-sharing-state">
+          <Info size={12} className="shrink-0" />
+          {sharing === 'shared'
+            ? 'Totals here include everyone\u2019s contributions, and yours show up for them.'
+            : sharing === 'offline'
+              ? 'Cannot reach the shared totals right now \u2014 what you give is kept and sent on when it is back.'
+              : sharing === 'loading'
+                ? 'Checking the shared totals\u2026'
+                : 'Shared totals are not switched on yet, so what you give stays in this browser.'}
+        </p>
+
         {donations.length > 0 && (
           <div className="paper-card p-5 md:p-6" data-testid="panel-your-giving">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-5">

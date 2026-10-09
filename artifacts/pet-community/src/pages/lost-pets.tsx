@@ -3,7 +3,9 @@
  * every case into its live search map.
  */
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useShared } from '@/components/use-shared';
+import { visitorId } from '@/lib/visitor';
 import { Link } from 'wouter';
 import {
   AlertTriangle,
@@ -58,7 +60,20 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
   // profile already knows.
   const prefill = profile && isProfileSet(profile) ? profile : null;
   const tick = useTicker(30000);
-  const [userCases, setUserCases] = useState<LostCase[]>(() => loadUserCases());
+  // Alerts and reunions are shared: a missing animal that only its owner can
+  // see is the one feature in this app that would be worse than useless.
+  const { items: sharedCases, add: addSharedCase, status: alertStatus } = useShared('lost');
+  const { items: sharedReunions, add: addSharedReunion } = useShared('reunions');
+  const me = visitorId();
+  const [localCases, setLocalCases] = useState<LostCase[]>(() => loadUserCases());
+
+  const userCases = useMemo<LostCase[]>(() => {
+    const fromNeighbours = sharedCases
+      .map((item) => (item.case && typeof item.case === 'object' ? ({ ...(item.case as LostCase), id: item.id }) : null))
+      .filter((c): c is LostCase => c !== null && typeof c.petName === 'string');
+    const mineAlready = new Set(fromNeighbours.map((c) => c.id));
+    return [...fromNeighbours.reverse(), ...localCases.filter((c) => !mineAlready.has(c.id))];
+  }, [sharedCases, localCases]);
   const [reportOpen, setReportOpen] = useState(false);
   const homeLandmark = LANDMARKS.find((l) => l.name === prefill?.neighbourhood) ?? LANDMARKS[7];
   const [form, setForm] = useState({
@@ -76,6 +91,27 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
   const [portrait, setPortrait] = useState<PortraitSpec>(prefill?.portrait ?? DEFAULT_PORTRAIT);
 
   const [reunions, setReunions] = useState<Record<string, Reunion>>(() => loadReunions());
+
+  // Somebody else marking a pet found has to take it off this board too.
+  useEffect(() => {
+    if (sharedReunions.length === 0) return;
+    setReunions((current) => {
+      const next = { ...current };
+      let changed = false;
+      for (const row of [...sharedReunions].sort((a, b) => (Number(a.at) || 0) - (Number(b.at) || 0))) {
+        const caseId = typeof row.caseId === 'string' ? row.caseId : null;
+        if (!caseId) continue;
+        if (row.found === false) {
+          if (next[caseId]) { delete next[caseId]; changed = true; }
+        } else if (!next[caseId]) {
+          next[caseId] = { at: typeof row.at === 'number' ? row.at : Date.now(), note: typeof row.note === 'string' ? row.note : '' };
+          changed = true;
+        }
+      }
+      if (changed) saveReunions(next);
+      return changed ? next : current;
+    });
+  }, [sharedReunions]);
   // Which card is showing its "is this right?" step, and the note being typed.
   const [closing, setClosing] = useState<string | null>(null);
   const [closingNote, setClosingNote] = useState('');
@@ -96,6 +132,8 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
     const next = { ...reunions, [item.id]: { at: Date.now(), note: note.trim() } };
     setReunions(next);
     saveReunions(next);
+    // Everyone who is out looking needs to know they can stop.
+    void addSharedReunion({ caseId: item.id, note: note.trim(), by: me, found: true });
     setClosing(null);
     setClosingNote('');
     notify({
@@ -110,6 +148,7 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
     delete next[item.id];
     setReunions(next);
     saveReunions(next);
+    void addSharedReunion({ caseId: item.id, note: '', by: me, found: false });
     notify({ tone: 'info', text: `${item.petName}'s alert is back on the board.` });
   }
 
@@ -152,12 +191,20 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
       // If you have a photo of your own pet, that is the one that helps.
       avatar: prefill?.avatar,
     };
-    const next = [created, ...userCases];
-    setUserCases(next);
+    // Kept here as well as sent on, so the alert is never lost to a bad
+    // connection at the worst possible moment.
+    const next = [created, ...localCases];
+    setLocalCases(next);
     saveUserCases(next);
+    void addSharedCase({ id: created.id, case: { ...created, avatar: undefined } as unknown as Record<string, unknown>, by: me });
     setReportOpen(false);
     setForm({ ...form, petName: '', breed: '', markings: '', description: '', contact: '' });
-    notify({ tone: 'success', text: `Alert posted. ${created.petName}'s search map is ready — open it and start with zone one.` });
+    notify({
+      tone: 'success',
+      text: alertStatus === 'shared'
+        ? `Alert posted to the neighbourhood. ${created.petName}'s search map is ready — start with zone one.`
+        : `Alert saved. ${created.petName}'s search map is ready, but it has not reached your neighbours yet.`,
+    });
   }
 
   return (

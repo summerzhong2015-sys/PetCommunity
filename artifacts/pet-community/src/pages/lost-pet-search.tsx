@@ -32,6 +32,8 @@ import {
 } from 'lucide-react';
 import { SearchMap, SearchMapLegend } from '@/components/search-map';
 import { PageHeader, Stat, useStored, useTicker, type Notify } from '@/components/page-bits';
+import { useShared } from '@/components/use-shared';
+import { visitorId } from '@/lib/visitor';
 import { findCase, minutesMissing, timeOfDayNow } from '@/lib/lost-pet-data';
 import { formatAge, predict, type Sighting, type Weather } from '@/lib/lost-pet-model';
 import { readReport } from '@/lib/report-reader';
@@ -70,7 +72,26 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
   const item = useMemo(() => findCase(caseId), [caseId]);
   const tick = useTicker(15000);
 
-  const [extra, setExtra] = useStored<StoredSighting[]>(`pc-sightings-${caseId}`, []);
+  // Sightings are the point of this page, and a sighting only one person can
+  // see is no help to anybody out walking the streets.
+  const { items: sharedSightings, add: addSharedSighting, status: sightingStatus } = useShared('sightings');
+  const me = visitorId();
+  const [localSightings, setLocalSightings] = useStored<StoredSighting[]>(`pc-sightings-${caseId}`, []);
+  const extra = useMemo<StoredSighting[]>(() => {
+    const fromNeighbours = sharedSightings
+      .filter((row) => row.caseId === caseId && row.where && typeof row.where === 'object')
+      .map((row) => ({
+        id: row.id,
+        at: row.where as Vec,
+        reportedAt: typeof row.reportedAt === 'number' ? row.reportedAt : 0,
+        confidence: (row.confidence as StoredSighting['confidence']) ?? 'possible',
+        note: typeof row.note === 'string' ? row.note : '',
+        reporter: row.by === me ? 'You' : typeof row.reporter === 'string' ? row.reporter : 'A neighbour',
+      }));
+    const known = new Set(fromNeighbours.map((sighting) => sighting.id));
+    return [...fromNeighbours, ...localSightings.filter((sighting) => !known.has(sighting.id))]
+      .sort((a, b) => b.reportedAt - a.reportedAt);
+  }, [sharedSightings, localSightings, caseId, me]);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [showHeat, setShowHeat] = useState(true);
   const [showSteps, setShowSteps] = useState(false);
@@ -154,22 +175,38 @@ export function LostPetSearch({ caseId, notify }: { caseId: string; notify: Noti
     const verdict = await review(note);
     if (verdict.level === 'block') { notify({ tone: 'error', text: verdict.reason }); return; }
     const where = nearestLandmark(pin);
-    setExtra([
-      {
-        id: `u${Date.now()}`,
-        at: pin,
-        reportedAt: Date.now(),
-        confidence,
-        note: note.trim() || `Sighting reported near ${where.name}.`,
-        reporter: 'You',
-      },
-      ...extra,
-    ]);
+    const reported: StoredSighting = {
+      id: `u${Date.now()}`,
+      at: pin,
+      reportedAt: Date.now(),
+      confidence,
+      note: note.trim() || `Sighting reported near ${where.name}.`,
+      reporter: 'You',
+    };
+    // Kept here and sent on, so a sighting is never lost to a bad signal in
+    // the middle of a search.
+    setLocalSightings([reported, ...localSightings]);
+    void addSharedSighting({
+      id: reported.id,
+      caseId,
+      at: reported.reportedAt,
+      where: { x: pin.x, y: pin.y },
+      reportedAt: reported.reportedAt,
+      confidence,
+      note: reported.note,
+      reporter: 'A neighbour',
+      by: me,
+    });
     setPin(null);
     setNote('');
     setPlacing(false);
     setSelectedZone(null);
-    notify({ tone: 'success', text: `Sighting logged near ${where.name}. The map has been redrawn around it.` });
+    notify({
+      tone: 'success',
+      text: sightingStatus === 'shared'
+        ? `Sighting logged near ${where.name}. The map has been redrawn, and everyone searching sees it.`
+        : `Sighting logged near ${where.name}. The map has been redrawn, but it has not reached the others yet.`,
+    });
   }
 
   return (

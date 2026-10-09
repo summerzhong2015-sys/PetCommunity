@@ -18,6 +18,7 @@ import {
   Info,
   MapPin,
   PawPrint,
+  Search,
   Send,
   ShieldCheck,
   ClipboardList,
@@ -28,7 +29,9 @@ import {
 
 import { PetPhoto } from '@/components/pet-photo';
 import { EmptyState, PageHeader, useRevealWhen, useStored, type Notify } from '@/components/page-bits';
-import { ADOPTABLE_PETS, SHELTERS, shelterOf, type AdoptablePet } from '@/lib/adoption-data';
+import {
+  ADOPTABLE_PETS, PER_PAGE, SHELTERS, matchesSearch, shelterOf, type AdoptablePet,
+} from '@/lib/adoption-data';
 import { CAMPAIGNS } from '@/lib/giving-data';
 
 type SpeciesFilter = 'all' | 'dog' | 'cat';
@@ -41,6 +44,8 @@ const STATUS_COPY: Record<AdoptablePet['status'], { label: string; tone: string 
 };
 
 export function Adopt({ notify }: { notify: Notify }) {
+  const [query, setQuery] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const [species, setSpecies] = useState<SpeciesFilter>('all');
   const [age, setAge] = useState<AgeFilter>('all');
   const [withKids, setWithKids] = useState(false);
@@ -54,10 +59,15 @@ export function Adopt({ notify }: { notify: Notify }) {
         if (species !== 'all' && p.species !== species) return false;
         if (age !== 'all' && p.ageBand !== age) return false;
         if (withKids && !p.goodWith.children) return false;
-        return true;
+        return matchesSearch(p, query);
       }),
-    [species, age, withKids],
+    [species, age, withKids, query],
   );
+
+  // Six is enough to browse; the rest are a click away, so the page does not
+  // run on for a screen and a half before you have decided anything.
+  const visible = showAll ? pets : pets.slice(0, PER_PAGE);
+  const hidden = pets.length - visible.length;
 
   const open = ADOPTABLE_PETS.find((p) => p.id === openId) ?? null;
   const longestWaiting = [...ADOPTABLE_PETS]
@@ -172,6 +182,28 @@ export function Adopt({ notify }: { notify: Notify }) {
           </span>
         </div>
 
+        <div className="relative mb-4">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <label htmlFor="adopt-search" className="sr-only">Search the animals looking for homes</label>
+          <input
+            id="adopt-search"
+            type="search"
+            className="field !pl-10"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setShowAll(false); }}
+            placeholder="A name, a breed, a shelter, or what you are after \u2014 'quiet', 'good with cats'"
+            data-testid="input-adopt-search"
+          />
+        </div>
+
+        {query.trim() !== '' && (
+          <p className="text-xs text-muted-foreground mb-4" data-testid="text-adopt-result-count">
+            {pets.length === 0
+              ? 'Nothing matching that.'
+              : `${pets.length} ${pets.length === 1 ? 'animal' : 'animals'} matching \u201c${query.trim()}\u201d.`}
+          </p>
+        )}
+
         {/* Grid */}
         {pets.length === 0 ? (
           <EmptyState
@@ -181,7 +213,7 @@ export function Adopt({ notify }: { notify: Notify }) {
           />
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pets.map((pet, i) => {
+            {visible.map((pet, i) => {
               const shelter = shelterOf(pet);
               const status = STATUS_COPY[pet.status];
               return (
@@ -242,6 +274,35 @@ export function Adopt({ notify }: { notify: Notify }) {
                 </article>
               );
             })}
+          </div>
+        )}
+
+        {hidden > 0 && (
+          <div className="text-center mt-6">
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              className="action-button button-quiet"
+              data-testid="button-more-pets"
+            >
+              <PawPrint size={16} /> {hidden} more {hidden === 1 ? 'animal' : 'animals'} looking for homes
+            </button>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              The ones waiting longest are not always at the top. It is worth the click.
+            </p>
+          </div>
+        )}
+
+        {showAll && pets.length > PER_PAGE && (
+          <div className="text-center mt-6">
+            <button
+              type="button"
+              onClick={() => setShowAll(false)}
+              className="action-button button-quiet"
+              data-testid="button-fewer-pets"
+            >
+              Show fewer
+            </button>
           </div>
         )}
 

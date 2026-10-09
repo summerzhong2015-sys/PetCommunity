@@ -418,3 +418,40 @@ export const ADOPTABLE_PETS: AdoptablePet[] = [
 export function shelterOf(pet: AdoptablePet): Shelter {
   return SHELTERS.find((s) => s.id === pet.shelterId) ?? SHELTERS[0];
 }
+
+/** How many animals the page shows before you ask for the rest. */
+export const PER_PAGE = 6;
+
+/**
+ * Searching the listings.
+ *
+ * People do not search a shelter list by field. They type a name they were
+ * told, a breed they have in mind, or the thing they actually need — "quiet",
+ * "good with cats", "small". So every word is matched against the whole
+ * listing: name, breed, age, size, shelter, headline, personality, what the
+ * animal is good with, and what it needs.
+ *
+ * Every word has to match something, so adding a word narrows the list rather
+ * than widening it, which is what typing more words is for.
+ */
+export function searchableText(pet: AdoptablePet): string {
+  const shelter = SHELTERS.find((s) => s.id === pet.shelterId);
+  const goodWith = [
+    pet.goodWith.children ? 'good with children kids' : '',
+    pet.goodWith.dogs ? 'good with dogs' : '',
+    pet.goodWith.cats ? 'good with cats' : '',
+  ].join(' ');
+  return [
+    pet.name, pet.breed, pet.ageLabel, pet.ageBand, pet.sex, pet.size, pet.species,
+    pet.headline, pet.needs, pet.personality.join(' '), goodWith, shelter?.name ?? '', shelter?.area ?? '',
+  ]
+    .join(' ')
+    .toLowerCase();
+}
+
+export function matchesSearch(pet: AdoptablePet, query: string): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const haystack = searchableText(pet);
+  return words.every((word) => haystack.includes(word));
+}

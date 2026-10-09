@@ -15,7 +15,7 @@
  * Run with:  pnpm --filter @workspace/pet-community run test:adoption
  */
 
-import { ADOPTABLE_PETS, SHELTERS } from './adoption-data.ts';
+import { ADOPTABLE_PETS, SHELTERS , PER_PAGE, matchesSearch, searchableText } from './adoption-data.ts';
 import { LOST_CASES } from './lost-pet-data.ts';
 import { CAMPAIGNS } from './giving-data.ts';
 
@@ -159,6 +159,44 @@ for (const shelter of SHELTERS) {
     check(`${shelter.name}: has either animals or a campaign to link to`,
       theirs.length > 0 || funding.length > 0);
   }
+}
+
+// --- searching the listings ----------------------------------------------
+{
+  check('a page is a browsable number', PER_PAGE >= 4 && PER_PAGE <= 9, String(PER_PAGE));
+
+  const pet = ADOPTABLE_PETS[0];
+  check('an empty search matches everything', ADOPTABLE_PETS.every((p) => matchesSearch(p, '')));
+  check('whitespace is not a search', ADOPTABLE_PETS.every((p) => matchesSearch(p, '   ')));
+
+  check('a name is found', matchesSearch(pet, pet.name));
+  check('case does not matter', matchesSearch(pet, pet.name.toUpperCase()));
+  check('a breed is found', matchesSearch(pet, pet.breed.split(' ')[0]));
+  check('a species is found', ADOPTABLE_PETS.filter((p) => matchesSearch(p, 'cat')).every((p) => searchableText(p).includes('cat')));
+
+  // What people actually type: what they need, not a field name.
+  const kidFriendly = ADOPTABLE_PETS.filter((p) => p.goodWith.children);
+  if (kidFriendly.length > 0) {
+    check('"good with children" finds the ones who are',
+      kidFriendly.every((p) => matchesSearch(p, 'good with children')));
+    check('and not the ones who are not',
+      ADOPTABLE_PETS.filter((p) => !p.goodWith.children).every((p) => !matchesSearch(p, 'good with children')));
+  }
+
+  const shelter = SHELTERS[0];
+  const theirs = ADOPTABLE_PETS.filter((p) => p.shelterId === shelter.id);
+  if (theirs.length > 0) {
+    check('a shelter name finds its animals', theirs.every((p) => matchesSearch(p, shelter.name.split(' ')[0])));
+  }
+
+  check('every word has to match, so more words narrow it',
+    ADOPTABLE_PETS.filter((p) => matchesSearch(p, `${pet.name} ${pet.breed}`)).length <=
+      ADOPTABLE_PETS.filter((p) => matchesSearch(p, pet.name)).length);
+  check('nonsense matches nothing', ADOPTABLE_PETS.every((p) => !matchesSearch(p, 'xyzzy')));
+  check('a word from one and a word from another matches neither',
+    ADOPTABLE_PETS.filter((p) => matchesSearch(p, 'xyzzy ' + pet.name)).length === 0);
+  check('searchable text is never empty', ADOPTABLE_PETS.every((p) => searchableText(p).trim().length > 10));
+  check('searchable text is lower case', ADOPTABLE_PETS.every((p) => searchableText(p) === searchableText(p).toLowerCase()));
 }
 
 console.log(out.join('\n'));

@@ -13,6 +13,7 @@
  * you could see changed.
  */
 
+import { useState } from 'react';
 import {
   Bookmark,
   ChevronDown,
@@ -23,6 +24,7 @@ import {
   MapPin,
   Mountain,
   ParkingCircle,
+  Plus,
   Quote,
   Route as RouteIcon,
   Sun,
@@ -33,7 +35,7 @@ import {
 import { PageHeader, useStored, type Notify } from '@/components/page-bits';
 import { WalkScene } from '@/components/walk-scene';
 import { PetPhoto } from '@/components/pet-photo';
-import { BUSY_LABEL, busyBars, defaultWalks, type Walk } from '@/lib/walks-data';
+import { BUSY_LABEL, FEATURED_WALKS, busyBars, byPopularity, defaultWalks, type Walk } from '@/lib/walks-data';
 
 /** One fact in the opened panel. */
 function Fact({ icon: Icon, label, value }: { icon: typeof Sun; label: string; value: string }) {
@@ -80,7 +82,12 @@ export function Walks({ notify }: { notify: Notify }) {
   const [savedIds, setSavedIds] = useStored<string[]>('pc_walks_saved', []);
   const [openId, setOpenId] = useStored<string | null>('pc_walk_open', null);
 
-  const walks = defaultWalks.map((walk) => ({ ...walk, saved: savedIds.includes(walk.id) }));
+  const walks = byPopularity(defaultWalks.map((walk) => ({ ...walk, saved: savedIds.includes(walk.id) })));
+  // The busiest few lead; the rest are a click away, so the page is a page
+  // rather than a scroll.
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? walks : walks.slice(0, FEATURED_WALKS);
+  const moreCount = walks.length - shown.length;
 
   function toggleSaved(walk: Walk) {
     const next = walk.saved ? savedIds.filter((id) => id !== walk.id) : [...savedIds, walk.id];
@@ -108,7 +115,7 @@ export function Walks({ notify }: { notify: Notify }) {
       <section className="page-wrap pb-10">
         {/* items-start so an opened card grows without stretching its neighbours. */}
         <div className="grid lg:grid-cols-3 gap-4 items-start">
-          {walks.map((walk, i) => {
+          {shown.map((walk, i) => {
             const open = walk.id === openId;
             return (
               <article
@@ -289,6 +296,35 @@ export function Walks({ notify }: { notify: Notify }) {
             );
           })}
         </div>
+
+        {moreCount > 0 && (
+          <div className="text-center mt-6">
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              className="action-button button-quiet"
+              data-testid="button-more-walks"
+            >
+              <Plus size={16} /> {moreCount} more {moreCount === 1 ? 'route' : 'routes'}
+            </button>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              The busiest ones are up top. The quiet ones are often the better walk.
+            </p>
+          </div>
+        )}
+
+        {showAll && walks.length > FEATURED_WALKS && (
+          <div className="text-center mt-6">
+            <button
+              type="button"
+              onClick={() => setShowAll(false)}
+              className="action-button button-quiet"
+              data-testid="button-fewer-walks"
+            >
+              Show fewer
+            </button>
+          </div>
+        )}
       </section>
     </main>
   );

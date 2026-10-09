@@ -10,7 +10,7 @@
  * Run with:  pnpm --filter @workspace/pet-community run test:walks
  */
 
-import { BUSY_LABEL, busyBars, defaultWalks, type Walk } from './walks-data.ts';
+import { BUSY_LABEL, busyBars, defaultWalks, type Walk , FEATURED_WALKS, byPopularity } from './walks-data.ts';
 
 let pass = 0, fail = 0;
 const out: string[] = [];
@@ -89,6 +89,35 @@ for (const field of ['surface', 'climb', 'water', 'offLeash'] as const) {
   check('every level has a label', Object.keys(BUSY_LABEL).length === 3);
   check('no level overflows the meter',
     (['quiet', 'steady', 'busy'] as const).every((l) => busyBars(l) >= 1 && busyBars(l) <= 3));
+}
+
+// --- which routes lead ----------------------------------------------------
+{
+  check('a handful lead, not all of them', FEATURED_WALKS >= 3 && FEATURED_WALKS <= 5, String(FEATURED_WALKS));
+  check('there are more routes than fit above the fold', defaultWalks.length > FEATURED_WALKS);
+
+  const ordered = byPopularity(defaultWalks);
+  check('nothing is lost in the sorting', ordered.length === defaultWalks.length);
+  check('nothing is duplicated', new Set(ordered.map((w) => w.id)).size === ordered.length);
+  check('the busiest route is first', ordered[0].active === Math.max(...defaultWalks.map((w) => w.active)),
+    `${ordered[0].name} (${ordered[0].active})`);
+  check('it reads busiest to quietest',
+    ordered.every((walk, i) => i === 0 || ordered[i - 1].active >= walk.active),
+    ordered.map((w) => w.active).join(' '));
+
+  // A route you saved is yours; it should not fall below the fold because
+  // nobody else happens to be out on it today.
+  const quietest = defaultWalks.reduce((a, b) => (a.active <= b.active ? a : b));
+  const withSaved = byPopularity(defaultWalks.map((w) => (w.id === quietest.id ? { ...w, saved: true } : w)));
+  check('a saved route comes first however quiet it is', withSaved[0].id === quietest.id, withSaved[0].name);
+  check('the rest still read busiest first',
+    withSaved.slice(1).every((walk, i) => i === 0 || withSaved[i].active >= walk.active));
+
+  check('the order does not change between calls',
+    JSON.stringify(byPopularity(defaultWalks).map((w) => w.id)) ===
+      JSON.stringify(byPopularity(defaultWalks).map((w) => w.id)));
+  check('the original list is left alone', defaultWalks[0].id === 'w1');
+  check('an empty list is fine', byPopularity([]).length === 0);
 }
 
 console.log(out.join('\n'));

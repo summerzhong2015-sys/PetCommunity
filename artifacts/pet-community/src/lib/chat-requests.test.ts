@@ -12,7 +12,8 @@
 import { NEIGHBOURS } from './neighbours-data.ts';
 import {
   OPENER_LIMIT, SIMULATED_REPLY_MS,
-  accept, askable, canSend, checkOpener, decline, inbox, requestThread, type Thread,
+  accept, askable, canSend, checkOpener, decline, inbox, normaliseThread, readThreads,
+  requestThread, unsend, type Thread,
 } from './chat-requests.ts';
 
 let pass = 0, fail = 0;
@@ -119,6 +120,76 @@ const mara = { id: 'mara', name: 'Mara Singh', initials: 'MS', pet: 'Clover' };
 {
   check('the simulated reply is long enough to read as waiting', SIMULATED_REPLY_MS >= 3000);
   check('but not so long it looks broken', SIMULATED_REPLY_MS <= 15000);
+}
+
+// --- conversations saved by an older version of the app -------------------
+// This is the bug that made the app look broken: threads were saved before
+// `state` existed, so every one of them read as an unanswered request. You
+// could not type into them, and withdrawing did nothing you could see.
+{
+  const old = { id: 't1', name: 'Rowan Bell', initials: 'RB', pet: 'Pip \u00b7 terrier', preview: 'Thanks', messages: [
+    { from: 'them', text: 'Hi, thank you for looking out for him.', time: '9:04 AM' },
+    { from: 'me', text: 'Of course.', time: '9:11 AM' },
+  ] };
+  const fixed = normaliseThread(old)!;
+  check('a thread with messages and no state opens', fixed.state === 'open', fixed.state);
+  check('its messages survive', fixed.messages.length === 2);
+  check('you can type into it again', canSend(fixed));
+
+  const stillAsking = normaliseThread({ id: 'r1', name: 'Theo', initials: 'TA', pet: 'Basil', preview: '', messages: [], opener: 'Hello!' })!;
+  check('an unanswered request with no state stays pending', stillAsking.state === 'pending', stillAsking.state);
+  check('and it cannot be typed into', !canSend(stillAsking));
+
+  const empty = normaliseThread({ id: 'e1', name: 'Nobody', initials: 'NN', pet: '', preview: '', messages: [] })!;
+  check('an empty thread with no opener opens rather than hanging', empty.state === 'open', empty.state);
+
+  check('a stated state is left alone', normaliseThread({ id: 'x', state: 'declined', messages: [] })!.state === 'declined');
+  check('a nonsense state is not kept', normaliseThread({ id: 'x', state: 'wobbly', messages: [] })!.state !== 'wobbly');
+
+  for (const junk of [null, undefined, 42, 'thread', {}, { id: '' }, { name: 'no id' }]) {
+    check(`rubbish (${JSON.stringify(junk)}) is dropped, not rendered`, normaliseThread(junk) === null);
+  }
+
+  const missing = normaliseThread({ id: 'm1', messages: [{ from: 'me', text: 'hi' }] })!;
+  check('a thread with no name still renders', missing.name.length > 0, missing.name);
+  check('initials are worked out when missing', missing.initials.length > 0, missing.initials);
+  check('a message with no time does not break', missing.messages[0].time === '');
+  check('half a message is dropped',
+    normaliseThread({ id: 'h', messages: [{ from: 'me' }, { text: 'orphan' }, { from: 'me', text: 'kept' }] })!.messages.length === 1);
+
+  check('storage that is not a list falls back', readThreads('nonsense', [stillAsking]).length === 1);
+  check('an empty store falls back', readThreads([], [stillAsking]).length === 1);
+  check('a store of rubbish falls back', readThreads([null, 7], [stillAsking]).length === 1);
+  check('a real store is used', readThreads([old], [stillAsking])[0].id === 't1');
+  check('normalising twice changes nothing',
+    JSON.stringify(normaliseThread(fixed)) === JSON.stringify(fixed));
+}
+
+// --- taking back something you sent ---------------------------------------
+{
+  const thread = normaliseThread({ id: 'c1', name: 'Theo', initials: 'TA', pet: 'Basil', preview: 'second', messages: [
+    { from: 'them', text: 'morning', time: '8:00 AM' },
+    { from: 'me', text: 'first', time: '8:01 AM' },
+    { from: 'me', text: 'second', time: '8:02 AM' },
+  ] })!;
+
+  const gone = unsend(thread, 2);
+  check('your own message goes', gone.messages.length === 2);
+  check('the right one goes', !gone.messages.some((m) => m.text === 'second'));
+  check('the preview follows what is left', gone.preview === 'first', gone.preview);
+
+  const older = unsend(thread, 1);
+  check('an older message can go too', !older.messages.some((m) => m.text === 'first'));
+  check('taking an older one back leaves the newest preview', older.preview === 'second', older.preview);
+
+  check('you cannot take back what they said', unsend(thread, 0).messages.length === 3);
+  check('an index that is not there changes nothing', unsend(thread, 99).messages.length === 3);
+  check('a negative index changes nothing', unsend(thread, -1).messages.length === 3);
+  check('the original is not mutated', thread.messages.length === 3);
+
+  const emptied = unsend(unsend(thread, 2), 1);
+  check('taking back everything you said leaves theirs', emptied.messages.length === 1);
+  check('and the preview says something rather than nothing', emptied.preview.length > 0, emptied.preview);
 }
 
 console.log(out.join('\n'));

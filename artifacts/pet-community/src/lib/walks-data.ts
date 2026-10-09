@@ -390,3 +390,26 @@ export const BUSY_LABEL: Record<Busyness, string> = {
 export function busyBars(level: Busyness): number {
   return level === 'quiet' ? 1 : level === 'steady' ? 2 : 3;
 }
+
+/** How many routes the page shows before you ask for the rest. */
+export const FEATURED_WALKS = 5;
+
+/**
+ * The busiest routes first.
+ *
+ * "Popular" here means how many neighbours are out on it now, which is the
+ * only popularity this app actually knows. A route you have saved counts as
+ * yours and comes first regardless — the one you keep going back to should
+ * not drop below the fold because nobody else happens to be on it today.
+ * Ties keep the original order so the list does not shuffle itself about.
+ */
+export function byPopularity(walks: Walk[]): Walk[] {
+  return walks
+    .map((walk, index) => ({ walk, index }))
+    .sort((a, b) => {
+      if (Boolean(a.walk.saved) !== Boolean(b.walk.saved)) return a.walk.saved ? -1 : 1;
+      if (a.walk.active !== b.walk.active) return b.walk.active - a.walk.active;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.walk);
+}

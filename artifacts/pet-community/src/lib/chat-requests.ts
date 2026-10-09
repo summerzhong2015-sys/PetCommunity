@@ -122,3 +122,81 @@ export function inbox(threads: Thread[]): Thread[] {
 export function canSend(thread: Thread | undefined): boolean {
   return thread?.state === 'open';
 }
+
+/**
+ * Reading a conversation back out of storage.
+ *
+ * Threads are saved in the browser, and the shape of a thread has changed
+ * since the first version of this app: `state` did not exist, so a thread
+ * saved back then comes back without one. `canSend` asks whether the state is
+ * 'open', `undefined` is not 'open', and the result was that every old
+ * conversation sat there saying "waiting for them to accept" with no way to
+ * type into it and no request to actually withdraw. It looked like the
+ * withdraw button was broken. It was the data that was old.
+ *
+ * So nothing is trusted on the way in. A thread with messages in it and no
+ * state is a conversation that was already happening, and it opens.
+ */
+export function normaliseThread(value: unknown): Thread | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Partial<Thread> & Record<string, unknown>;
+  if (typeof raw.id !== 'string' || raw.id === '') return null;
+
+  const messages: Message[] = Array.isArray(raw.messages)
+    ? (raw.messages as unknown[]).filter((m): m is Message => {
+        const message = m as Partial<Message>;
+        return (message?.from === 'me' || message?.from === 'them') && typeof message.text === 'string';
+      }).map((m) => ({ from: m.from, text: m.text, time: typeof m.time === 'string' ? m.time : '' }))
+    : [];
+
+  const known: ThreadState[] = ['pending', 'open', 'declined'];
+  const state: ThreadState = known.includes(raw.state as ThreadState)
+    ? (raw.state as ThreadState)
+    // No state saved: if there is a conversation here, it is open. If there is
+    // nothing but an opener, it was still a request.
+    : messages.length > 0
+      ? 'open'
+      : typeof raw.opener === 'string' && raw.opener.trim() !== ''
+        ? 'pending'
+        : 'open';
+
+  const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name : 'A neighbour';
+  return {
+    id: raw.id,
+    neighbourId: typeof raw.neighbourId === 'string' ? raw.neighbourId : undefined,
+    name,
+    initials: typeof raw.initials === 'string' && raw.initials.trim()
+      ? raw.initials
+      : name.slice(0, 2).toUpperCase(),
+    pet: typeof raw.pet === 'string' ? raw.pet : '',
+    preview: typeof raw.preview === 'string' ? raw.preview : messages[messages.length - 1]?.text ?? '',
+    messages,
+    state,
+    opener: typeof raw.opener === 'string' ? raw.opener : undefined,
+    requestedAt: typeof raw.requestedAt === 'number' && Number.isFinite(raw.requestedAt) ? raw.requestedAt : undefined,
+  };
+}
+
+/** Everything in storage, with anything unreadable dropped rather than crashing. */
+export function readThreads(value: unknown, fallback: Thread[]): Thread[] {
+  if (!Array.isArray(value)) return fallback;
+  const threads = value.map(normaliseThread).filter((t): t is Thread => t !== null);
+  return threads.length > 0 ? threads : fallback;
+}
+
+/**
+ * Take back something you sent.
+ *
+ * Only your own messages, and the preview follows whatever is left so the
+ * list does not go on quoting a line that is no longer in the conversation.
+ */
+export function unsend(thread: Thread, index: number): Thread {
+  const message = thread.messages[index];
+  if (!message || message.from !== 'me') return thread;
+  const messages = thread.messages.filter((_, i) => i !== index);
+  return {
+    ...thread,
+    messages,
+    preview: messages[messages.length - 1]?.text ?? 'You took back the last message',
+  };
+}

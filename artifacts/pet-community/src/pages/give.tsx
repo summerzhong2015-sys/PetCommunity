@@ -226,6 +226,35 @@ export function Give({ notify }: { notify: Notify }) {
         </div>
 
         {/* Campaigns */}
+        {shown.length === 0 && (
+          <div className="paper-card p-8 text-center" data-testid="empty-campaigns">
+            <BadgeCheck size={26} className="mx-auto text-primary" />
+            <p className="serif text-2xl mt-3">
+              {filter === 'all' ? 'Everything here is paid for' : 'Nothing open under that filter'}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
+              {filter === 'all'
+                ? 'Every campaign has hit its goal, which does happen. New ones go up as shelters and neighbours ask \u2014 and a funded one stays here for three days before it comes down, so you may have only just missed it.'
+                : 'Nothing in this category is asking for money right now. Try another one, or see everything.'}
+            </p>
+            {filter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setFilter('all')}
+                className="action-button button-quiet mt-5"
+                data-testid="button-show-all-campaigns"
+              >
+                See everything
+              </button>
+            )}
+            {donations.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-5">
+                Your giving history is still here &mdash; nothing you have given has gone anywhere.
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="grid md:grid-cols-2 gap-4">
           {shown.map((campaign, i) => {
             const Icon = KIND_ICON[campaign.kind];

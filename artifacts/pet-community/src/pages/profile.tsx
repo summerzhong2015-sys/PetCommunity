@@ -4,11 +4,12 @@
  * exactly how that lands in the feed.
  */
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import {
   BellRing,
   Check,
+  ChevronDown,
   Dices,
   Info,
   MapPin,
@@ -60,6 +61,11 @@ export function Profile({
   const [saved, setSaved] = useState(false);
   // True while the frame is being moved over a photo that is already saved.
   const [reframing, setReframing] = useState(false);
+  // One part of the form open at a time. The picture first, because that is
+  // what most people come here to change.
+  const [openSection, setOpenSection] = useState<'picture' | 'names' | 'area' | 'about' | null>('picture');
+  const toggle = (which: 'picture' | 'names' | 'area' | 'about') =>
+    setOpenSection((current) => (current === which ? null : which));
   // Held here so the pencil on the picture can open the album straight away.
   // Calling .click() inside the click handler keeps the browser's gesture,
   // which an effect would lose.
@@ -140,17 +146,21 @@ export function Profile({
         description="Draw something that looks like them, or use a photo if you have one handy. Add a line or two, and watch how it will look to everyone else as you go."
       />
 
-      <section className="page-wrap pb-12">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_330px] gap-5 items-start">
+      <section className="page-wrap-wide pb-12">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
           <form onSubmit={(e) => void save(e)} className="paper-card p-5 md:p-7" data-testid="form-profile">
-            {/* Portrait builder */}
-            <fieldset>
-              <legend className="eyebrow mb-3">Profile picture</legend>
-              <div className="grid sm:grid-cols-[150px_1fr] gap-6 items-start">
+            <Section
+              title="Profile picture"
+              summary={form.avatar ? 'A photo of your own' : 'A drawing of them'}
+              open={openSection === 'picture'}
+              onToggle={() => toggle('picture')}
+              testId="picture"
+            >
+              <div className="grid sm:grid-cols-[200px_1fr] gap-6 items-start">
                 <div className="text-center sm:text-left">
                   <FramedAvatar
                     frame={frame}
-                    className="w-36 h-36 mx-auto sm:mx-0"
+                    className="w-40 h-40 mx-auto sm:mx-0"
                     onEdit={editPhoto}
                     editLabel={form.avatarSource ? 'Move the frame on your photo' : 'Add a photo'}
                   >
@@ -179,6 +189,41 @@ export function Profile({
                     onCleared={() => update({ avatar: undefined, avatarSource: undefined, avatarCrop: undefined })}
                     onError={(text) => notify({ tone: 'error', text })}
                   />
+
+                  <div className="mt-5 pt-4 border-t border-border/70 text-left">
+                    <p className="eyebrow mb-1">Frame it</p>
+                    <p className="text-[11px] text-muted-foreground mb-3">
+                      Follows your picture around the app, and quietly takes on the
+                      colour of whatever page you are on.
+                    </p>
+                    <div className="flex flex-wrap gap-2.5">
+                      {FRAMES.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => update({ frame: option.id })}
+                          aria-pressed={frame === option.id}
+                          title={option.hint}
+                          className={`flex flex-col items-center gap-1.5 rounded-2xl px-2.5 py-2 border transition-colors ${
+                            frame === option.id
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:bg-secondary/40'
+                          }`}
+                          data-testid={`button-profile-frame-${option.id}`}
+                        >
+                          <FramedAvatar frame={option.id} className="w-11 h-11">
+                            <PetPhoto
+                              src={form.avatar}
+                              portrait={form.portrait}
+                              alt=""
+                              className="w-full h-full"
+                            />
+                          </FramedAvatar>
+                          <span className="text-[10px] font-bold leading-none">{option.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid gap-4">
@@ -281,45 +326,15 @@ export function Profile({
                 </div>
               </div>
 
-              <div className="mt-6 pt-5 border-t border-border/70">
-                <p className="eyebrow mb-1">Frame it</p>
-                <p className="text-[11px] text-muted-foreground mb-3">
-                  Follows your picture around the app, and quietly takes on the
-                  colour of whatever page you are on.
-                </p>
-                <div className="flex flex-wrap gap-2.5">
-                  {FRAMES.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => update({ frame: option.id })}
-                      aria-pressed={frame === option.id}
-                      title={option.hint}
-                      className={`flex flex-col items-center gap-1.5 rounded-2xl px-2.5 py-2 border transition-colors ${
-                        frame === option.id
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:bg-secondary/40'
-                      }`}
-                      data-testid={`button-profile-frame-${option.id}`}
-                    >
-                      <FramedAvatar frame={option.id} className="w-11 h-11">
-                        <PetPhoto
-                          src={form.avatar}
-                          portrait={form.portrait}
-                          alt=""
-                          className="w-full h-full"
-                        />
-                      </FramedAvatar>
-                      <span className="text-[10px] font-bold leading-none">{option.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </fieldset>
+            </Section>
 
-            {/* Names and details */}
-            <fieldset className="mt-7 pt-6 border-t border-border">
-              <legend className="eyebrow mb-3">Names</legend>
+            <Section
+              title="Names and details"
+              summary={[form.username, form.petName, form.breed, form.age].filter(Boolean).join(' \u00b7 ') || 'Not filled in yet'}
+              open={openSection === 'names'}
+              onToggle={() => toggle('names')}
+              testId="names"
+            >
               <div className="grid sm:grid-cols-2 gap-3">
                 <label className="block text-xs font-bold">
                   What neighbours call you <span className="text-destructive">*</span>
@@ -372,9 +387,18 @@ export function Profile({
                 </label>
               </div>
 
-              <div className="mt-6">
+            </Section>
+
+            <Section
+              title="Where you walk from"
+              summary={form.area ? describeArea(form.area) : 'Not set yet'}
+              open={openSection === 'area'}
+              onToggle={() => toggle('area')}
+              testId="area"
+            >
+              <div>
                 <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                  <p className="eyebrow">Where you walk from</p>
+                  <p className="sr-only">Where you walk from</p>
                   {form.area ? (
                     <span className="text-[11px] font-bold text-primary" data-testid="text-area-state">
                       {describeArea(form.area)}
@@ -438,11 +462,15 @@ export function Profile({
                   </span>
                 </label>
               </div>
-            </fieldset>
+            </Section>
 
-            {/* Description */}
-            <fieldset className="mt-6 pt-6 border-t border-border">
-              <legend className="eyebrow mb-3">About {form.petName.trim() || 'them'}</legend>
+            <Section
+              title={`About ${form.petName.trim() || 'them'}`}
+              summary={form.bio.trim() || 'Nothing written yet'}
+              open={openSection === 'about'}
+              onToggle={() => toggle('about')}
+              testId="about"
+            >
               <textarea
                 rows={4}
                 className="field"
@@ -455,7 +483,7 @@ export function Profile({
               <p className={`text-[11px] mt-1.5 ${bioLeft < 30 ? 'text-destructive' : 'text-muted-foreground'}`}>
                 {bioLeft} characters left
               </p>
-            </fieldset>
+            </Section>
 
             <div className="flex flex-wrap items-center justify-between gap-3 mt-7 pt-5 border-t border-border">
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -560,5 +588,58 @@ export function Profile({
         )}
       </section>
     </main>
+  );
+}
+
+/**
+ * One part of the profile, folded away until you want it.
+ *
+ * The form used to be one very tall page: picture, names, details, map, bio,
+ * all open at once, and most of it already filled in. Folding each part up
+ * behind its own summary line means the page is a short list of what you have
+ * already said, and you open the one thing you came to change.
+ */
+function Section({
+  title,
+  summary,
+  open,
+  onToggle,
+  children,
+  testId,
+}: {
+  title: string;
+  /** What this section currently says, in a few words. */
+  summary: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  testId: string;
+}) {
+  return (
+    <section className="border-t border-border first:border-t-0 first:pt-0 pt-1">
+      <h2>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="w-full flex items-center gap-3 text-left py-4 group"
+          data-testid={`button-section-${testId}`}
+        >
+          <ChevronDown
+            size={16}
+            className={`shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block eyebrow">{title}</span>
+            {!open && (
+              <span className="block text-sm font-bold truncate mt-0.5" data-testid={`text-section-summary-${testId}`}>
+                {summary}
+              </span>
+            )}
+          </span>
+        </button>
+      </h2>
+      {open && <div className="pb-6" data-testid={`section-${testId}`}>{children}</div>}
+    </section>
   );
 }

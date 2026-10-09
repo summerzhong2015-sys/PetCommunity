@@ -37,7 +37,7 @@ import { describeArea } from '@/lib/area';
 import { NEIGHBOURS } from '@/lib/neighbours-data';
 import {
   OPENER_LIMIT, SIMULATED_REPLY_MS,
-  accept as acceptRequest, askable, canSend, checkOpener, decline as declineRequest,
+  accept as acceptRequest, askable, canSend, checkOpener,
   inbox, requestThread, type Thread,
 } from '@/lib/chat-requests';
 import { backgroundFor, themeFor, themeVariables } from '@/lib/themes';
@@ -349,7 +349,7 @@ function Nearby({ notify, profile }: { notify: (n: Notice) => void; profile: Pet
 
 function Messages({ notify }: { notify: (n: Notice) => void }) {
   const [threads, setThreads] = useStored<Thread[]>('pc_threads', defaultThreads);
-  const [selectedId, setSelectedId] = useState('t1');
+  const [selectedId, setSelectedId] = useState<string | null>('t1');
   const conversation = useRevealWhen<HTMLDivElement>(selectedId);
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [checking, setChecking] = useState(false);
@@ -391,8 +391,13 @@ function Messages({ notify }: { notify: (n: Notice) => void }) {
   }
 
   function withdraw(thread: Thread) {
-    setThreads(current => current.map(t => (t.id === thread.id ? declineRequest(t) : t)));
-    notify({ tone: 'info', text: 'Request withdrawn.' });
+    // Withdrawing is not the same as being turned down: you took it back, so
+    // it goes away entirely and that neighbour is someone you can ask again.
+    // Leaving a dead thread in the list was the bug — there was no way back
+    // from it.
+    setThreads(current => current.filter(t => t.id !== thread.id));
+    if (selectedId === thread.id) setSelectedId(null);
+    notify({ tone: 'info', text: `Request withdrawn. You can say hello to ${thread.name.split(' ')[0]} again whenever you like.` });
   }
   const deliver = (text: string) => {
     const message = { from: 'me' as const, text, time: 'Just now' };
@@ -417,7 +422,7 @@ function Messages({ notify }: { notify: (n: Notice) => void }) {
 
   // Keep the newest message in view. Without this the list only grew downward,
   // so everything sent landed below the fold and nothing seemed to happen.
-  useEffect(() => { endOfMessages.current?.scrollIntoView({ block: 'nearest' }); }, [selected.messages.length, selectedId]);
+  useEffect(() => { endOfMessages.current?.scrollIntoView({ block: 'nearest' }); }, [selected?.messages.length, selectedId]);
   return <main className="min-h-[calc(100dvh-4rem)]"><PageHeader eyebrow="Private, neighbor to neighbor" title="A small inbox." description="Conversations stay lightweight and local in this demo. No public profiles, no read receipts, no noise." /><section className="page-wrap pb-10"><div className="paper-card overflow-hidden grid md:grid-cols-[280px_minmax(0,1fr)] min-h-[500px]"><div className="border-b md:border-b-0 md:border-r border-border"><div className="p-4 border-b border-border flex items-center justify-between"><p className="eyebrow">Your conversations</p><button onClick={() => { setAsking(v => !v); setAskingWho(null); setOpener(''); }} aria-expanded={asking} className="p-2 rounded-lg hover:bg-secondary" aria-label="Ask a neighbour for a chat" data-testid="button-new-message"><Plus size={17} className={`transition-transform ${asking ? 'rotate-45' : ''}`} /></button></div>{asking && <AskPanel neighbours={canAsk} chosen={chosen} onChoose={setAskingWho} opener={opener} onOpener={setOpener} onSend={() => void sendRequest()} onCancel={() => { setAsking(false); setAskingWho(null); }} />}
 {listed.map(thread => <button key={thread.id} onClick={() => setSelectedId(thread.id)} className={`w-full text-left p-4 flex gap-3 border-b border-border ${selected?.id === thread.id ? 'bg-secondary' : 'hover:bg-secondary/50'}`} data-testid={`button-thread-${thread.id}`}><ThreadFace thread={thread} /><div className="min-w-0 flex-1"><p className="font-bold text-sm flex items-center gap-1.5">{thread.name}{thread.state === 'pending' && <Clock3 size={12} className="text-muted-foreground shrink-0" />}</p><p className="text-[11px] text-muted-foreground">{thread.pet}</p><p className={`text-xs mt-1 truncate ${thread.state === 'pending' ? 'italic text-muted-foreground' : ''}`}>{thread.preview}</p></div></button>)}</div><div ref={conversation} className="flex flex-col min-h-[500px]"><div className="p-4 md:p-5 border-b border-border flex items-center gap-3"><ThreadFace thread={selected} /><div><h2 className="font-bold text-sm">{selected.name}</h2><p className="text-xs text-muted-foreground">{selected.pet} · neighborhood contact</p></div><span className="ml-auto tag"><ShieldCheck size={12} className="mr-1" />private</span></div><div className="flex-1 p-4 md:p-6 space-y-3 bg-background/40 overflow-y-auto max-h-[46vh] md:max-h-[52vh]" aria-live="polite">{selected.messages.map((message, i) => <div key={`${selected.id}-${i}`} className={`flex ${message.from === 'me' ? 'justify-end' : 'justify-start'}`} data-testid={`message-${selected.id}-${i}`}><div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm ${message.from === 'me' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-secondary rounded-bl-sm'}`}><p>{message.text}</p><p className={`text-[10px] mt-2 ${message.from === 'me' ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>{message.time}</p></div></div>)}<div ref={endOfMessages} /></div><div className="border-t border-border">{!open ? <PendingPanel thread={selected} onWithdraw={() => withdraw(selected)} /> : <>{verdict && verdict.level !== 'clean' && <div className={`px-3 md:px-4 pt-3 text-sm flex items-start gap-2.5 ${verdict.level === 'block' ? 'text-destructive' : 'text-muted-foreground'}`} role="alert" data-testid="notice-moderation">{verdict.level === 'block' ? <AlertTriangle size={16} className="shrink-0 mt-0.5" /> : <Info size={16} className="shrink-0 mt-0.5 text-primary" />}<span>{verdict.reason}{verdict.level === 'warn' && <em className="not-italic block text-xs mt-1">Press send again to send it anyway.</em>}</span></div>}<form onSubmit={send} className="p-3 md:p-4 flex gap-2"><label htmlFor="message-compose" className="sr-only">Write a message</label><input id="message-compose" className="field" value={draft} onChange={e => { setDraft(e.target.value); if (verdict?.level === 'block') setVerdict(null); }} placeholder={`Message ${selected.name.split(' ')[0]}...`} data-testid="input-message-compose" /><button type="submit" disabled={checking} className="action-button button-primary !px-3 disabled:opacity-60" aria-label="Send message" data-testid="button-send-message"><Send size={17} /></button></form></>}</div></div></div></section></main>;
 }

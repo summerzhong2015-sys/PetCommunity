@@ -24,6 +24,29 @@
 
 export const config = { runtime: 'edge' };
 
+/**
+ * The web globals this function uses, described here rather than pulled from
+ * a `lib`.
+ *
+ * This repo's TypeScript settings are shared by everything in it and
+ * deliberately do not include the DOM library — most of the workspace is not
+ * a browser. The platform this runs on does have `fetch`, `Request` and
+ * `Response`, so rather than loosening the settings for the whole monorepo
+ * (and letting browser globals leak into Node scripts where they do not
+ * belong), the three things this file needs are described here and read off
+ * `globalThis`. Self-contained, and it cannot be broken by a tsconfig change
+ * somewhere else.
+ */
+type WebRequest = { method: string; json: () => Promise<unknown> };
+type WebResponse = { ok: boolean; status: number; json: () => Promise<unknown> };
+type FetchLike = (
+  url: string,
+  init?: { method?: string; headers?: Record<string, string>; body?: string },
+) => Promise<WebResponse>;
+type ResponseLike = new (body: string, init: { status: number; headers: Record<string, string> }) => object;
+
+const web = globalThis as unknown as { fetch: FetchLike; Response: ResponseLike };
+
 /** Every collection the app shares, and the cap on each. */
 const COLLECTIONS = {
   posts: 200,
@@ -48,7 +71,7 @@ function store(): { url: string; token: string } | null {
 }
 
 async function redis(command: string[], at: { url: string; token: string }): Promise<unknown> {
-  const response = await fetch(at.url, {
+  const response = await web.fetch(at.url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${at.token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(command),
@@ -96,14 +119,14 @@ function clean(value: unknown, depth = 0): unknown {
   return null;
 }
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
+function json(body: unknown, status = 200): object {
+  return new web.Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
 }
 
-export default async function handler(request: Request): Promise<Response> {
+export default async function handler(request: WebRequest): Promise<object> {
   const at = store();
   if (!at) {
     // Not a failure. The app reads this and keeps to its own browser.

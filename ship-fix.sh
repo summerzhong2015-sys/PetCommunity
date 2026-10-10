@@ -15,6 +15,40 @@ echo "Clearing stale git locks..."
 rm -f .git/HEAD.lock .git/index.lock .git/refs/heads/*.lock
 rm -f .git/objects/*/tmp_obj_* 2>/dev/null || true
 
+# The serverless function in api/ is typechecked by Vercel during the build,
+# with this repo's settings, which do not include the browser library. That is
+# a build failure you would otherwise only hear about from a red X two minutes
+# after pushing, so it is worth checking first.
+#
+# Worth checking, not worth blocking on: node is not always on the PATH here,
+# and a missing checker is no reason to stop you shipping. If it cannot be
+# found this says so and carries on.
+NODE=""
+for candidate in \
+  "$(command -v node 2>/dev/null)" \
+  /opt/homebrew/bin/node \
+  /usr/local/bin/node \
+  /usr/bin/node \
+  "$HOME"/.nvm/versions/node/*/bin/node \
+  "$HOME"/.volta/bin/node \
+  "$HOME"/.local/share/fnm/node-versions/*/installation/bin/node
+do
+  if [ -n "$candidate" ] && [ -x "$candidate" ]; then NODE="$candidate"; break; fi
+done
+
+TSC="node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/bin/tsc"
+if [ -d api ] && [ -n "$NODE" ] && [ -f "$TSC" ]; then
+  echo "Checking the API..."
+  if ! "$NODE" "$TSC" --noEmit --lib es2022 --target es2022 --module esnext \
+      --moduleResolution bundler --strict --skipLibCheck api/*.ts; then
+    echo
+    echo "The API does not typecheck, so the deploy would fail. Nothing was pushed."
+    exit 1
+  fi
+elif [ -d api ]; then
+  echo "Skipping the API check (no node on this machine). Vercel will check it."
+fi
+
 MESSAGE=${1:-"Update PetCommunity"}
 
 # Stage everything that is part of the app, one path at a time.

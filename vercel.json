@@ -4,6 +4,6 @@
   "buildCommand": "pnpm --filter @workspace/pet-community run build",
   "outputDirectory": "artifacts/pet-community/dist/public",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

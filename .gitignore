@@ -50,3 +50,6 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Notes and screenshots Claude leaves behind; not part of the app.
+Claude outputs/

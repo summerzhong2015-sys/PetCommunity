@@ -107,6 +107,13 @@ export function Give({ notify }: { notify: Notify }) {
     },
     [filter, everyDonation],
   );
+  // A campaign that has been met is not asking for anything. It stays
+  // readable for its three days — people who gave want to see it land — but it
+  // moves out of the way of the ones that still need money, behind a count
+  // you can open.
+  const asking = shown.filter((c) => fundingOf(c.goal, raisedFor(c)).state !== 'funded');
+  const funded = shown.filter((c) => fundingOf(c.goal, raisedFor(c)).state === 'funded');
+  const [showFunded, setShowFunded] = useState(false);
   const open = shown.find((c) => c.id === openId) ?? null;
 
   const given = donations.reduce((sum, d) => sum + d.amount, 0);
@@ -302,7 +309,7 @@ export function Give({ notify }: { notify: Notify }) {
         )}
 
         <div className="grid md:grid-cols-2 gap-4">
-          {shown.map((campaign, i) => {
+          {[...asking, ...(showFunded ? funded : [])].map((campaign, i) => {
             const Icon = KIND_ICON[campaign.kind];
             const raised = raisedFor(campaign);
             const yours = yourShareOf(campaign.id);
@@ -421,6 +428,47 @@ export function Give({ notify }: { notify: Notify }) {
             );
           })}
         </div>
+
+        {asking.length === 0 && funded.length > 0 && !showFunded && (
+          <div className="paper-card p-8 text-center" data-testid="empty-asking">
+            <BadgeCheck size={26} className="mx-auto text-primary" />
+            <p className="serif text-2xl mt-3">Nothing is asking for money this week</p>
+            <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
+              Every campaign here has been met. They stay readable for three days and then come down, and new ones go
+              up as shelters and neighbours ask.
+            </p>
+          </div>
+        )}
+
+        {funded.length > 0 && !showFunded && (
+          <div className="text-center mt-6">
+            <button
+              type="button"
+              onClick={() => setShowFunded(true)}
+              className="action-button button-quiet"
+              data-testid="button-show-funded"
+            >
+              <BadgeCheck size={16} /> {funded.length} fully funded &mdash; see {funded.length === 1 ? 'it' : 'them'}
+            </button>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Paid for, and out of the way of the ones that are not. They come down three days after they are met, and
+              anything given to them after that goes where each one says it will.
+            </p>
+          </div>
+        )}
+
+        {funded.length > 0 && showFunded && (
+          <div className="text-center mt-6">
+            <button
+              type="button"
+              onClick={() => setShowFunded(false)}
+              className="action-button button-quiet"
+              data-testid="button-hide-funded"
+            >
+              Hide the funded {funded.length === 1 ? 'one' : 'ones'}
+            </button>
+          </div>
+        )}
 
         {open && (
           <CampaignDetail

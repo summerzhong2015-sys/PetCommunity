@@ -28,7 +28,31 @@ export type SharedItem = { id: string } & Record<string, unknown>;
 
 export type SharedStatus = 'local' | 'loading' | 'shared' | 'offline';
 
-export const ENDPOINT = '/api/state';
+/**
+ * Where the shared copy lives.
+ *
+ * In a browser this is a path on the same site, which is the whole of it. In
+ * a native build it is not: Capacitor serves the app from `capacitor://` or
+ * `file://`, where a relative URL has no server behind it at all and every
+ * read would fail silently into "this browser only". So anywhere that is not
+ * an ordinary web page, the app asks the deployed site directly.
+ *
+ * `VITE_SHARED_ORIGIN` overrides it, for pointing a build at a preview
+ * deployment without editing code.
+ */
+export const PRODUCTION_ORIGIN = 'https://petcommunity-mvp.vercel.app';
+
+function endpoint(): string {
+  const override = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_SHARED_ORIGIN;
+  if (override) return `${override.replace(/\/$/, '')}/api/state`;
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol;
+    if (protocol !== 'http:' && protocol !== 'https:') return `${PRODUCTION_ORIGIN}/api/state`;
+  }
+  return '/api/state';
+}
+
+export const ENDPOINT = endpoint();
 
 /** How often to look for other people's changes. Often enough to feel live, rare enough to be free. */
 export const POLL_MS = 20_000;

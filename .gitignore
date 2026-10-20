@@ -53,3 +53,12 @@ Thumbs.db
 
 # Notes and screenshots Claude leaves behind; not part of the app.
 Claude outputs/
+
+# Xcode build output and local signing state. The ios/ project itself IS
+# committed — these are the parts that are rebuilt or are personal.
+ios/App/App/public
+ios/App/Pods
+ios/App/App.xcworkspace/xcuserdata
+ios/App/App.xcodeproj/xcuserdata
+DerivedData
+*.xcuserstate

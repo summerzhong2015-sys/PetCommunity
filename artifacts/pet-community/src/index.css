@@ -295,9 +295,14 @@
   .nav-link { display: flex; align-items: center; gap: .7rem; padding: .75rem .9rem; border-radius: .7rem; color: hsl(var(--sidebar-foreground) / .72); font-size: .88rem; font-weight: 600; }
   .nav-link:hover { color: hsl(var(--sidebar-foreground)); background: hsl(var(--sidebar-accent)); }
   .nav-link.active { color: hsl(var(--sidebar-primary-foreground)); background: hsl(var(--sidebar-primary)); }
+  .mobile-nav { padding-bottom: calc(.5rem + env(safe-area-inset-bottom)); }
   .mobile-nav-link { display: flex; flex-direction: column; align-items: center; gap: .22rem; font-size: .65rem; font-weight: 700; color: hsl(var(--muted-foreground)); }
   .mobile-nav-link.active { color: hsl(var(--primary)); }
   .field { width: 100%; border: 1px solid hsl(var(--input)); background: hsl(var(--background)); color: hsl(var(--foreground)); border-radius: .7rem; padding: .72rem .8rem; font-size: .9rem; }
+  /* Safari zooms the whole page when you focus an input under 16px, and then
+     leaves you zoomed in. Sixteen on touch screens, and the smaller size kept
+     everywhere a mouse is doing the pointing. */
+  @media (pointer: coarse) { .field, input, textarea, select { font-size: 16px; } }
   .field::placeholder { color: hsl(var(--muted-foreground) / .75); }
   .tag { display: inline-flex; align-items: center; border-radius: 999px; padding: .26rem .58rem; font-family: var(--app-font-mono); font-size: .64rem; font-weight: 700; letter-spacing: .02em; background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); }
   .avatar { display: grid; place-items: center; flex: none; width: 2.4rem; height: 2.4rem; border-radius: 50%; font-family: var(--app-font-serif); font-weight: 700; color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); }
@@ -547,4 +552,22 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+}
+
+@layer base {
+  /* Installed to a home screen, the app owns the whole screen — including the
+     strip behind the notch and the one the home indicator sits on. These keep
+     content out of both, and do nothing at all on a desktop. */
+  body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  .page-wrap, .page-wrap-wide { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+  /* iOS would otherwise resize text by itself in landscape, and bounce the
+     whole page when a list is scrolled past its end — both of which read as a
+     web page rather than an app. */
+  html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+
+  /* A tap should not flash a grey box, and a long press on a button should
+     not offer to copy it. */
+  a, button { -webkit-tap-highlight-color: transparent; }
+  button { -webkit-touch-callout: none; }
 }

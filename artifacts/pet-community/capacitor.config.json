@@ -1,0 +1,22 @@
+{
+  "appId": "ca.murrayville.petcommunity",
+  "appName": "PetCommunity",
+  "webDir": "dist/public",
+  "backgroundColor": "#f7f4ec",
+  "ios": {
+    "contentInset": "always",
+    "scrollEnabled": true,
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "server": {
+    "iosScheme": "petcommunity"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 900,
+      "backgroundColor": "#f7f4ec",
+      "showSpinner": false
+    }
+  }
+}

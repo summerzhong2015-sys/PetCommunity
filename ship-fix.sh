@@ -59,7 +59,7 @@ MESSAGE=${1:-"Update PetCommunity"}
 # is how the whole serverless API shipped as "nothing to commit" while
 # looking like a successful deploy. One path at a time, so one missing folder
 # cannot take the rest down with it.
-for path in api artifacts lib scripts vercel.json package.json pnpm-workspace.yaml SHARED-DATA.md README.md; do
+for path in api artifacts lib scripts ios vercel.json package.json pnpm-lock.yaml pnpm-workspace.yaml capacitor.config.json SHARED-DATA.md APP-STORE.md IOS.md README.md; do
   if [ -e "$path" ]; then
     git add -A "$path"
   fi

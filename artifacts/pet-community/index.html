@@ -2,17 +2,33 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- viewport-fit=cover lets the app use the whole screen on a notched
+         iPhone; the CSS then keeps content out from under the notch and the
+         home indicator. maximum-scale is gone on purpose: it blocked pinch
+         zoom, which people who need it rely on. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>PetCommunity</title>
-    <meta name="description" content="PetCommunity — built on Replit. Update this description to reflect the app." />
+    <meta name="description" content="Your neighbourhood's pets in Murrayville: good walks, lost and found, animals looking for homes, and the people next door." />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="PetCommunity" />
-    <meta property="og:description" content="PetCommunity — built on Replit. Update this description to reflect the app." />
+    <meta property="og:title" content="PetCommunity — Murrayville" />
+    <meta property="og:description" content="Your neighbourhood's pets in Murrayville: good walks, lost and found, animals looking for homes, and the people next door." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="PetCommunity" />
-    <meta name="twitter:description" content="PetCommunity — built on Replit. Update this description to reflect the app." />
+    <meta name="twitter:description" content="Your neighbourhood's pets in Murrayville: good walks, lost and found, animals looking for homes, and the people next door." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Installed to a home screen, this is the app's icon, name and colour.
+         iOS reads apple-touch-icon rather than the manifest's icons, so both
+         are here. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="PetCommunity" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f4ec" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1d2a24" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

@@ -1,0 +1,21 @@
+{
+  "name": "PetCommunity — Murrayville",
+  "short_name": "PetCommunity",
+  "description": "Your neighbourhood's pets: walks, lost and found, animals looking for homes, and the people next door.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f4ec",
+  "theme_color": "#2f6f52",
+  "categories": ["social", "lifestyle"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Report a lost pet", "url": "/lost-pets" },
+    { "name": "Good walks", "url": "/walks" }
+  ]
+}

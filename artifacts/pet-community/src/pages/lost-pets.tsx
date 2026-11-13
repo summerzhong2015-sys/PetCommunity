@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-react';
 import { CountUp, EmptyState, PageHeader, useTicker, type Notify } from '@/components/page-bits';
+import { AlertToggle, InstallNudge } from '@/components/alerts';
 import { PetPhoto } from '@/components/pet-photo';
 import { review } from '@/lib/moderation';
 import {
@@ -231,6 +232,11 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
       />
 
       <section className="page-wrap pb-10">
+        {/* The alert is the whole point of this page, so the way to receive
+            one belongs at the top of it rather than in a settings screen
+            nobody opens. */}
+        <InstallNudge />
+
         <div className="alert-banner rounded-2xl p-4 flex gap-3 mb-6">
           <ShieldCheck size={18} className="shrink-0 mt-0.5" />
           <p className="text-xs leading-relaxed">
@@ -238,6 +244,7 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
             computed on your device from the animal&rsquo;s behaviour and the local terrain. No notification service is
             connected and no personal identity is required.
           </p>
+          <AlertToggle notify={notify} />
         </div>
 
         {reportOpen && (

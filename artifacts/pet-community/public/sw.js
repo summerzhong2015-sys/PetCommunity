@@ -55,3 +55,54 @@ self.addEventListener('fetch', (event) => {
       }),
   );
 });
+
+/**
+ * A push arrives. Show it — always.
+ *
+ * Apple revokes a site's notification permission if it receives a push and
+ * shows nothing, so there is no early return anywhere in here. Even a push we
+ * cannot make sense of gets a notification, because a vague alert is better
+ * than losing the ability to send any.
+ */
+self.addEventListener('push', (event) => {
+  let note = { title: 'A pet is missing nearby', body: 'Open PetCommunity to see the search map.', url: '/lost-pets' };
+  try {
+    if (event.data) {
+      const sent = event.data.json();
+      note = {
+        title: typeof sent.title === 'string' ? sent.title : note.title,
+        body: typeof sent.body === 'string' ? sent.body : note.body,
+        url: typeof sent.url === 'string' ? sent.url : note.url,
+      };
+    }
+  } catch {
+    /* Unreadable payload: the default above still gets shown. */
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(note.title, {
+      body: note.body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'lost-pet',
+      data: { url: note.url },
+    }),
+  );
+});
+
+/** Tapping it should land on the search map, not a fresh copy of the app. */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/lost-pets';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      for (const client of windows) {
+        if ('focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});

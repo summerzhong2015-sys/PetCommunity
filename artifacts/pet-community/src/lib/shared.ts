@@ -21,7 +21,8 @@
  *    be a privacy mistake rather than a feature.
  */
 
-export type SharedCollection = 'posts' | 'comments' | 'donations' | 'lost' | 'sightings' | 'reunions';
+export type SharedCollection =
+  | 'people' | 'posts' | 'comments' | 'donations' | 'lost' | 'sightings' | 'reunions';
 
 /** Anything shared carries an id, so a late echo of your own write is not a duplicate. */
 export type SharedItem = { id: string } & Record<string, unknown>;

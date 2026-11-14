@@ -17,9 +17,13 @@
  * Until that store exists this answers 501 and says so, and the app carries on
  * against the browser's own storage. Nothing breaks while it is not set up.
  *
- * Deliberately NOT here: profiles, saved animals, draft messages. Those are
- * one person's own business and sharing them without real accounts would be a
- * privacy mistake, not a feature.
+ * `people` is here only because being findable is the point of a neighbourhood
+ * app, and only on an opt-in basis: nothing is written unless somebody has
+ * ticked "let neighbours see me nearby", and even then it carries a name, a
+ * pet and a rounded pin — never a photograph, never an address.
+ *
+ * Deliberately NOT here: saved animals, draft messages, and anybody's
+ * photographs. Those are one person's own business.
  */
 
 export const config = { runtime: 'edge' };
@@ -49,6 +53,8 @@ const web = globalThis as unknown as { fetch: FetchLike; Response: ResponseLike 
 
 /** Every collection the app shares, and the cap on each. */
 const COLLECTIONS = {
+  /** Who is around, for anybody who chose to be listed. Opt-in, no photos. */
+  people: 500,
   posts: 200,
   comments: 1000,
   donations: 2000,

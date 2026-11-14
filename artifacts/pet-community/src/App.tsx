@@ -36,7 +36,8 @@ import { PetPhoto } from '@/components/pet-photo';
 import { FramedAvatar } from '@/components/framed-avatar';
 import { normaliseFrame } from '@/lib/avatar-frame';
 import { describeDistance, metresFromMine, withinCircle } from '@/lib/neighbours';
-import { describeArea } from '@/lib/area';
+import { describeArea, pointFor } from '@/lib/area';
+import { asStranger, measure, visible as visibleTo } from '@/lib/people';
 import { NEIGHBOURS } from '@/lib/neighbours-data';
 import {
   OPENER_LIMIT, SIMULATED_REPLY_MS,
@@ -360,7 +361,50 @@ function Nearby({ notify, profile }: { notify: (n: Notice) => void; profile: Pet
   const [, setLocation] = useLocation();
   const [selected, setSelected] = useState<string | null>(null);
   const panel = useRevealWhen<HTMLDivElement>(selected);
-  const people = NEIGHBOURS;
+  // Real neighbours, from anyone who ticked "let neighbours see me nearby",
+  // alongside the ones the app ships with.
+  const { items: sharedPeople, add: publishMe } = useShared('people');
+  const people = useMemo(() => {
+    const written = sharedPeople
+      .filter((row) => row.id !== visitorId() && row.listed === true && typeof row.name === 'string' && row.spot && typeof row.spot === 'object')
+      .map((row) => ({
+        id: row.id,
+        name: String(row.name),
+        initials: typeof row.initials === 'string' ? row.initials : String(row.name).slice(0, 2).toUpperCase(),
+        pet: typeof row.pet === 'string' ? row.pet : '',
+        detail: typeof row.detail === 'string' ? row.detail : '',
+        note: typeof row.note === 'string' ? row.note : '',
+        color: 'bg-secondary',
+        area: typeof row.area === 'string' ? row.area : '',
+        at: row.spot as { x: number; y: number },
+        photo: undefined as string | undefined,
+        avatar: undefined as string | undefined,
+        portrait: row.portrait as PortraitSpec | undefined,
+      }));
+    const seeded = NEIGHBOURS.map((n) => ({ ...n, at: pointFor(undefined, n.area) ?? { x: 0, y: 0 } }));
+    return [...written, ...seeded];
+  }, [sharedPeople]);
+
+  // Being listed is opt-in, and switching it off takes the row away again.
+  // Only what a neighbour needs goes up: a name, a pet, a rounded pin. No
+  // photograph ever leaves this browser.
+  const myArea = profile.area;
+  useEffect(() => {
+    if (!isProfileStarted(profile)) return;
+    void publishMe({
+      id: visitorId(),
+      listed: profile.shareArea === true,
+      name: profile.username,
+      initials: profile.username.slice(0, 2).toUpperCase(),
+      pet: profile.petName,
+      detail: [profile.breed, profile.age].filter(Boolean).join(' \u00b7 ') || profile.petType,
+      note: myArea ? `Sets off ${describeArea(myArea)}` : `Usually around ${profile.neighbourhood}`,
+      area: profile.neighbourhood,
+      spot: myArea ?? pointFor(undefined, profile.neighbourhood) ?? { x: 0, y: 0 },
+      portrait: profile.portrait as unknown as Record<string, unknown>,
+    });
+    // Published when the parts a neighbour sees change, not on every render.
+  }, [profile.username, profile.petName, profile.breed, profile.age, profile.shareArea, profile.neighbourhood, myArea, publishMe, profile]);
   // Distances are computed from the landmark each person chose, not written
   // down. You appear here only if you asked to, and only for people inside the
   // circle the page promises.
@@ -380,13 +424,20 @@ function Nearby({ notify, profile }: { notify: (n: Notice) => void; profile: Pet
       }
     : null;
 
-  const listed = [...(you ? [you] : []), ...people]
-    .map(person => {
-      const metres = metresFromMine(profile.area, profile.neighbourhood, person.area);
-      return { ...person, metres, distance: person.id === 'you' ? 'your patch' : metres === null ? '' : describeDistance(metres) };
-    })
-    .filter(person => person.id === 'you' || !you || withinCircle(person.metres))
-    .sort((a, b) => (a.metres ?? Infinity) - (b.metres ?? Infinity));
+  // Everybody who asked to be listed, measured from your own spot, then split:
+  // the ones whose patch overlaps yours, and the ones you would have to ask.
+  const mySpot = pointFor(profile.area, profile.neighbourhood);
+  const measured = measure(
+    [...(you ? [{ ...you, at: mySpot ?? { x: 0, y: 0 }, isYou: true }] : []), ...people] as never,
+    mySpot,
+  );
+  const { near, far } = visibleTo(measured);
+  const listed = near.map(person => ({
+    ...person,
+    color: person.color ?? 'bg-secondary',
+    distance: person.id === 'you' ? 'your patch' : person.metres === null ? '' : describeDistance(person.metres),
+  }));
+  const strangers = far.map(asStranger);
 
   // Four cards, yours among them, and the rest a click away. Ten faces in a
   // grid is a directory; four is a neighbourhood.
@@ -401,6 +452,25 @@ function Nearby({ notify, profile }: { notify: (n: Notice) => void; profile: Pet
       {!profile.area && <div className="paper-card p-4 mb-5 flex items-start gap-3" data-testid="notice-set-area"><MapPin size={16} className="shrink-0 mt-0.5 text-primary" /><div className="min-w-0"><p className="text-sm font-bold">You haven&rsquo;t set where you walk from</p><p className="text-xs text-muted-foreground mt-1 leading-relaxed">Distances below are measured from {profile.neighbourhood}, which was only ever a default. Drop a pin and they become yours.</p><Link href="/profile" className="text-xs font-bold text-primary inline-flex items-center gap-1 mt-2" data-testid="link-set-area">Set my spot <ArrowRight size={13} /></Link></div></div>}<div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">{visible.map((person, i) => <button key={person.id} onClick={() => setSelected(person.id)} className={`paper-card text-left p-5 ${selected === person.id ? 'ring-2 ring-primary' : ''} reveal reveal-delay-${Math.min(i + 1, 3)}`} data-testid={`card-neighbor-${person.id}`}><div className="relative"><PetPhoto photo={person.photo} src={person.avatar} portrait={person.portrait} alt={`${person.pet}, ${person.detail}`} className="w-full aspect-[4/3] rounded-[1rem]" width={420} fallback={<span className={`block w-full h-full ${person.color}`} />} /><span className="tag absolute top-3 right-3 bg-card/85 backdrop-blur-sm">{person.distance}</span></div><div className="flex items-center gap-2.5 mt-4"><Avatar initials={person.initials} className="small" /><h2 className="serif text-2xl">{person.name}</h2></div><p className="text-sm font-semibold mt-1">{person.pet}</p><p className="text-xs text-muted-foreground mt-1">{person.detail}</p><div className={`rounded-xl ${person.color} mt-5 px-3 py-3 text-xs text-foreground/75 flex gap-2`}><Footprints size={14} className="shrink-0" />{person.note}</div><span className="flex items-center justify-between mt-5 text-xs font-bold text-primary">{person.id === 'you' ? <>This is how you appear <Pencil size={14} /></> : <>View neighbour <ArrowRight size={15} /></>}</span></button>)}</div>
       {hidden > 0 && <div className="text-center mt-5"><button type="button" onClick={() => setShowEveryone(true)} className="action-button button-quiet" data-testid="button-more-neighbours"><UsersRound size={16} /> {hidden} more {hidden === 1 ? 'neighbour' : 'neighbours'} in your circle</button></div>}
       {showEveryone && listed.length > 4 && <div className="text-center mt-5"><button type="button" onClick={() => setShowEveryone(false)} className="action-button button-quiet" data-testid="button-fewer-neighbours">Show fewer</button></div>}
+
+      {/* Outside your circle. A name and a rough distance is all that reaches
+          this page — their pet, their notes and where they walk are stripped
+          out in lib/people.ts rather than hidden here, so none of it is in the
+          page for anybody to find. */}
+      {strangers.length > 0 && <div className="mt-8" data-testid="section-further-out">
+        <p className="eyebrow">Further out</p>
+        <p className="text-xs text-muted-foreground mt-1 mb-3 leading-relaxed">{strangers.length} {strangers.length === 1 ? 'person walks' : 'people walk'} beyond your 2 km circle. You can say hello, and they decide whether to answer.</p>
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {strangers.map(person => <div key={person.id} className="rounded-[1rem] border border-border p-4 flex items-center gap-3" data-testid={`card-stranger-${person.id}`}>
+            <Avatar initials={person.initials} className="small" />
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-sm truncate">{person.name}</p>
+              <p className="text-[11px] text-muted-foreground">{person.metres === null ? 'Further out' : `${describeDistance(person.metres)} away`}</p>
+            </div>
+            <button type="button" onClick={() => { localStorage.setItem('pc_draft', `Hi ${person.name.split(' ')[0]} \u2014 I am a bit further off than your usual circle, but I walk round Murrayville too and thought I would say hello.`); setLocation('/messages'); }} className="action-button button-quiet text-xs px-3 min-h-0 py-2 shrink-0" data-testid={`button-ask-${person.id}`}>Say hello</button>
+          </div>)}
+        </div>
+      </div>}
       {chosen && <div ref={panel} className="paper-card mt-6 p-5 md:p-7 reveal" data-testid={`panel-neighbor-detail-${chosen.id}`}><div className="flex justify-between items-start"><div className="flex gap-4 items-center"><PetPhoto photo={chosen.photo} src={chosen.avatar} portrait={chosen.portrait} alt={`${chosen.pet}, ${chosen.detail}`} className="w-20 h-20 shrink-0 rounded-[1.4rem]" width={220} fallback={<span className={`block w-full h-full ${chosen.color}`} />} /><div><p className="eyebrow">{chosen.id === 'you' ? 'Your own card' : `${chosen.distance} away`}</p><h2 className="serif text-2xl">{chosen.name} & {chosen.pet}</h2><p className="text-xs text-muted-foreground mt-1">{chosen.detail}</p></div></div><button onClick={() => setSelected(null)} className="p-2 rounded-lg hover:bg-secondary" aria-label="Close neighbour details" data-testid="button-close-neighbour"><X size={18} /></button></div>{chosen.id === 'you'
         ? <><p className="prose-note no-cap text-muted-foreground mt-5">This is your own card, shown the way a neighbour sees it. They get your name, your pet, roughly how far away you are &mdash; and nothing else. You are listed because you asked to be; turning that off in your profile removes you from everyone&rsquo;s list straight away.</p><div className="flex flex-wrap gap-2 mt-4"><span className="tag">Only you see this note</span><span className="tag">Distance is rounded</span><span className="tag">No address</span></div><div className="flex flex-wrap gap-2 mt-6"><Link href="/profile" className="action-button button-primary" data-testid="link-edit-own-card"><Pencil size={16} /> Edit how you appear</Link></div></>
         : <><p className="text-sm text-muted-foreground mt-5 max-w-xl">You are both in the Murrayville circle. PetCommunity keeps the introduction light: no last names, addresses, or personal profiles required.</p><div className="flex flex-wrap gap-2 mt-4"><span className="tag">Friendly introduction</span><span className="tag">Approximate distance</span><span className="tag">Neighborhood only</span></div><button onClick={() => startMessage(chosen.name, chosen.pet)} className="action-button button-primary mt-6" data-testid={`button-message-neighbour-${chosen.id}`}><MessageCircle size={16} /> Draft a friendly hello</button></>}</div>}

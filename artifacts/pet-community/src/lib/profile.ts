@@ -42,6 +42,12 @@ export type PetProfile = {
   avatarSource?: string;
   /** Where the frame sat on that source, so reopening starts where you left off. */
   avatarCrop?: { x: number; y: number; size: number };
+  /**
+   * A small copy of the photo, for other people's screens. A few kilobytes
+   * rather than the avatar's two hundred, because this is the one that goes
+   * into the shared copy everybody reads.
+   */
+  face?: string;
   /** A decorative border. Purely for fun. */
   frame?: string;
   /**
@@ -100,6 +106,8 @@ export function normalizeProfile(value: Partial<PetProfile> | null | undefined):
       value?.avatarCrop && typeof value.avatarCrop === 'object'
         ? value.avatarCrop
         : undefined,
+    face:
+      typeof value?.face === 'string' && value.face.startsWith('data:image/') ? value.face : undefined,
     frame: normaliseFrame(value?.frame),
     area,
     bio: value?.bio ?? '',

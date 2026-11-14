@@ -16,7 +16,9 @@ import {
   MAX_ZOOM, MIN_ZOOM,
   centredOffset, clampZoom, cropFor, offsetAfterZoom, previewTransform,
 } from '@/lib/photo-crop';
-import { MAX_EDGE, QUALITY_STEPS, SOURCE_EDGE, withinBudget } from '@/lib/photo-upload';
+import {
+  FACE_EDGE, MAX_EDGE, MAX_FACE_BYTES, QUALITY_STEPS, SOURCE_EDGE, dataUrlBytes, withinBudget,
+} from '@/lib/photo-upload';
 
 const VIEWPORT = 248;
 
@@ -31,7 +33,7 @@ export function PhotoCropper({
   src: string;
   /** Where the frame was last time, so reopening starts where you left off. */
   initialCrop?: { x: number; y: number; size: number };
-  onDone: (result: { avatar: string; source: string; crop: { x: number; y: number; size: number } }) => void;
+  onDone: (result: { avatar: string; source: string; crop: { x: number; y: number; size: number }; face?: string }) => void;
   onCancel: () => void;
   onError: (message: string) => void;
 }) {
@@ -114,10 +116,24 @@ export function PhotoCropper({
         size: Math.max(1, Math.round(crop.size * sourceScale)),
       };
 
+      // And a small one for other people's screens, so your neighbours see
+      // your actual pet rather than the drawing.
+      const faceCanvas = document.createElement('canvas');
+      faceCanvas.width = FACE_EDGE;
+      faceCanvas.height = FACE_EDGE;
+      faceCanvas
+        .getContext('2d')
+        ?.drawImage(image!, crop.x, crop.y, crop.size, crop.size, 0, 0, FACE_EDGE, FACE_EDGE);
+      let face: string | undefined;
+      for (const quality of [0.62, 0.5, 0.4]) {
+        const small = faceCanvas.toDataURL('image/jpeg', quality);
+        if (dataUrlBytes(small) <= MAX_FACE_BYTES) { face = small; break; }
+      }
+
       for (const quality of QUALITY_STEPS) {
         const encoded = canvas.toDataURL('image/jpeg', quality);
         if (withinBudget(encoded)) {
-          onDone({ avatar: encoded, source, crop: scaledCrop });
+          onDone({ avatar: encoded, source, crop: scaledCrop, face });
           return;
         }
       }

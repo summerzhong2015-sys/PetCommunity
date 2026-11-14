@@ -26,7 +26,7 @@ export function PhotoPicker({
   onReframeHandled,
   fileInputRef,
 }: {
-  onPicked: (result: { avatar: string; source: string; crop: { x: number; y: number; size: number } }) => void;
+  onPicked: (result: { avatar: string; source: string; crop: { x: number; y: number; size: number }; face?: string }) => void;
   onCleared: () => void;
   hasPhoto: boolean;
   onError: (message: string) => void;
@@ -56,7 +56,7 @@ export function PhotoPicker({
     if (input.current) input.current.value = '';
   }
 
-  function finish(result: { avatar: string; source: string; crop: { x: number; y: number; size: number } }) {
+  function finish(result: { avatar: string; source: string; crop: { x: number; y: number; size: number }; face?: string }) {
     if (pending) URL.revokeObjectURL(pending);
     setPending(null);
     onPicked(result);

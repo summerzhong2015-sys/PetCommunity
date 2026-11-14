@@ -39,6 +39,7 @@ import { describeDistance, metresFromMine, withinCircle } from '@/lib/neighbours
 import { describeArea, pointFor } from '@/lib/area';
 import { asStranger, measure, visible as visibleTo } from '@/lib/people';
 import { NEIGHBOURS } from '@/lib/neighbours-data';
+import { readAddressee, writeAddressee } from '@/lib/hello-draft';
 import {
   OPENER_LIMIT, SIMULATED_REPLY_MS,
   accept as acceptRequest, askable, canSend, checkOpener, normaliseThread, unsend,
@@ -248,6 +249,7 @@ function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetPr
         initials: typeof item.initials === 'string' ? item.initials : 'NN',
         petType: item.petType === 'cat' ? 'cat' : 'dog',
         portrait: (item.portrait as Post['portrait']) ?? undefined,
+        avatar: typeof item.face === 'string' && item.face.startsWith('data:image/') ? item.face : undefined,
         mine: item.by === me,
         time: 'Just now',
         body: typeof item.body === 'string' ? item.body : '',
@@ -290,7 +292,7 @@ function Home({ notify, profile }: { notify: (n: Notice) => void; profile: PetPr
     // The drawn portrait travels with the post; a photograph does not. A
     // profile photo is yours and is large, and neither belongs on a server
     // nobody has signed in to.
-    void addSharedPost({ author: profile.username, initials: profile.username.slice(0, 2).toUpperCase(), petType: profile.petType, portrait: profile.portrait as unknown as Record<string, unknown>, body: text, tag: profile.neighbourhood, by: me });
+    void addSharedPost({ author: profile.username, initials: profile.username.slice(0, 2).toUpperCase(), petType: profile.petType, portrait: profile.portrait as unknown as Record<string, unknown>, face: profile.face, body: text, tag: profile.neighbourhood, by: me });
     setDraft(''); setPostVerdict(null); setComposerOpen(false);
     notify({ tone: 'success', text: feedStatus === 'shared' ? 'Posted. Your neighbours will see it.' : 'Posted. It is in this browser until the shared feed is reachable.' });
   };
@@ -378,7 +380,7 @@ function Nearby({ notify, profile }: { notify: (n: Notice) => void; profile: Pet
         area: typeof row.area === 'string' ? row.area : '',
         at: row.spot as { x: number; y: number },
         photo: undefined as string | undefined,
-        avatar: undefined as string | undefined,
+        avatar: typeof row.face === 'string' && row.face.startsWith('data:image/') ? row.face : undefined,
         portrait: row.portrait as PortraitSpec | undefined,
       }));
     const seeded = NEIGHBOURS.map((n) => ({ ...n, at: pointFor(undefined, n.area) ?? { x: 0, y: 0 } }));
@@ -402,9 +404,10 @@ function Nearby({ notify, profile }: { notify: (n: Notice) => void; profile: Pet
       area: profile.neighbourhood,
       spot: myArea ?? pointFor(undefined, profile.neighbourhood) ?? { x: 0, y: 0 },
       portrait: profile.portrait as unknown as Record<string, unknown>,
+      face: profile.face,
     });
     // Published when the parts a neighbour sees change, not on every render.
-  }, [profile.username, profile.petName, profile.breed, profile.age, profile.shareArea, profile.neighbourhood, myArea, publishMe, profile]);
+  }, [profile.username, profile.petName, profile.breed, profile.age, profile.shareArea, profile.neighbourhood, profile.face, myArea, publishMe, profile]);
   // Distances are computed from the landmark each person chose, not written
   // down. You appear here only if you asked to, and only for people inside the
   // circle the page promises.
@@ -445,7 +448,15 @@ function Nearby({ notify, profile }: { notify: (n: Notice) => void; profile: Pet
   const visible = showEveryone ? listed : listed.slice(0, 4);
   const hidden = listed.length - visible.length;
   const chosen = listed.find(p => p.id === selected);
-  const startMessage = (name: string, pet: string) => { localStorage.setItem('pc_draft', `Hi ${name.split(' ')[0]} — I’m a neighbour and would love to say hello to ${pet}.`); setLocation('/messages'); };
+  // A draft with no addressee was landing in whichever conversation happened
+  // to be open — so your hello to one neighbour arrived at another. The id
+  // travels with the text now.
+  const startMessage = (person: { id: string; name: string; initials?: string; pet?: string; detail?: string }) => {
+    const pet = person.pet || 'your pet';
+    localStorage.setItem('pc_draft', `Hi ${person.name.split(' ')[0]} — I’m a neighbour and would love to say hello to ${pet}.`);
+    localStorage.setItem('pc_draft_to', writeAddressee(person));
+    setLocation('/messages');
+  };
   return <main><PageHeader eyebrow="Your 2 km circle" title={<>Familiar faces,<br /><em className="text-primary not-italic">four paws at a time.</em></>} description="The people you keep half-recognising on the same streets. Distances are rough on purpose." action={<button className="action-button button-quiet" onClick={() => notify({ tone: 'info', text: 'Old Yale Park is your current neighbourhood circle.' })} data-testid="button-nearby-filter"><MapPin size={16} /> Old Yale Park <span className="text-muted-foreground">⌄</span></button>} />
     <section className="page-wrap pb-10"><div className="flex items-center gap-2 mb-5"><span className="tag bg-primary/10 text-primary"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-1.5" />18 active now</span><span className="text-xs text-muted-foreground">No precise locations are shown</span></div>
       {/* Distances mean nothing until you have said where you are measuring from. */}
@@ -467,13 +478,13 @@ function Nearby({ notify, profile }: { notify: (n: Notice) => void; profile: Pet
               <p className="font-bold text-sm truncate">{person.name}</p>
               <p className="text-[11px] text-muted-foreground">{person.metres === null ? 'Further out' : `${describeDistance(person.metres)} away`}</p>
             </div>
-            <button type="button" onClick={() => { localStorage.setItem('pc_draft', `Hi ${person.name.split(' ')[0]} \u2014 I am a bit further off than your usual circle, but I walk round Murrayville too and thought I would say hello.`); setLocation('/messages'); }} className="action-button button-quiet text-xs px-3 min-h-0 py-2 shrink-0" data-testid={`button-ask-${person.id}`}>Say hello</button>
+            <button type="button" onClick={() => { localStorage.setItem('pc_draft', `Hi ${person.name.split(' ')[0]} \u2014 I am a bit further off than your usual circle, but I walk round Murrayville too and thought I would say hello.`); localStorage.setItem('pc_draft_to', writeAddressee({ ...person, detail: 'beyond your circle' })); setLocation('/messages'); }} className="action-button button-quiet text-xs px-3 min-h-0 py-2 shrink-0" data-testid={`button-ask-${person.id}`}>Say hello</button>
           </div>)}
         </div>
       </div>}
       {chosen && <div ref={panel} className="paper-card mt-6 p-5 md:p-7 reveal" data-testid={`panel-neighbor-detail-${chosen.id}`}><div className="flex justify-between items-start"><div className="flex gap-4 items-center"><PetPhoto photo={chosen.photo} src={chosen.avatar} portrait={chosen.portrait} alt={`${chosen.pet}, ${chosen.detail}`} className="w-20 h-20 shrink-0 rounded-[1.4rem]" width={220} fallback={<span className={`block w-full h-full ${chosen.color}`} />} /><div><p className="eyebrow">{chosen.id === 'you' ? 'Your own card' : `${chosen.distance} away`}</p><h2 className="serif text-2xl">{chosen.name} & {chosen.pet}</h2><p className="text-xs text-muted-foreground mt-1">{chosen.detail}</p></div></div><button onClick={() => setSelected(null)} className="p-2 rounded-lg hover:bg-secondary" aria-label="Close neighbour details" data-testid="button-close-neighbour"><X size={18} /></button></div>{chosen.id === 'you'
         ? <><p className="prose-note no-cap text-muted-foreground mt-5">This is your own card, shown the way a neighbour sees it. They get your name, your pet, roughly how far away you are &mdash; and nothing else. You are listed because you asked to be; turning that off in your profile removes you from everyone&rsquo;s list straight away.</p><div className="flex flex-wrap gap-2 mt-4"><span className="tag">Only you see this note</span><span className="tag">Distance is rounded</span><span className="tag">No address</span></div><div className="flex flex-wrap gap-2 mt-6"><Link href="/profile" className="action-button button-primary" data-testid="link-edit-own-card"><Pencil size={16} /> Edit how you appear</Link></div></>
-        : <><p className="text-sm text-muted-foreground mt-5 max-w-xl">You are both in the Murrayville circle. PetCommunity keeps the introduction light: no last names, addresses, or personal profiles required.</p><div className="flex flex-wrap gap-2 mt-4"><span className="tag">Friendly introduction</span><span className="tag">Approximate distance</span><span className="tag">Neighborhood only</span></div><button onClick={() => startMessage(chosen.name, chosen.pet)} className="action-button button-primary mt-6" data-testid={`button-message-neighbour-${chosen.id}`}><MessageCircle size={16} /> Draft a friendly hello</button></>}</div>}
+        : <><p className="text-sm text-muted-foreground mt-5 max-w-xl">You are both in the Murrayville circle. PetCommunity keeps the introduction light: no last names, addresses, or personal profiles required.</p><div className="flex flex-wrap gap-2 mt-4"><span className="tag">Friendly introduction</span><span className="tag">Approximate distance</span><span className="tag">Neighbourhood only</span></div><button onClick={() => startMessage(chosen)} className="action-button button-primary mt-6" data-testid={`button-message-neighbour-${chosen.id}`}><MessageCircle size={16} /> Draft a friendly hello</button></>}</div>}
     </section>
   </main>;
 }
@@ -495,15 +506,35 @@ function Messages({ notify }: { notify: (n: Notice) => void }) {
   const messageList = useRef<HTMLDivElement | null>(null);
   const endOfMessages = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState(() => { const value = localStorage.getItem('pc_draft') || ''; localStorage.removeItem('pc_draft'); return value; });
+  const [draftTo] = useState(() => { const value = readAddressee(localStorage.getItem('pc_draft_to')); localStorage.removeItem('pc_draft_to'); return value; });
   // Starting a conversation: who you can ask, and the hello you are writing.
   const [asking, setAsking] = useState(false);
   const [askingWho, setAskingWho] = useState<string | null>(null);
   const [opener, setOpener] = useState('');
   const listed = inbox(threads);
   const selected = listed.find(t => t.id === selectedId) || listed[0];
+
   const open = canSend(selected);
-  const canAsk = askable(NEIGHBOURS, threads);
+  // Someone from another device, or from beyond the circle, is not in the
+  // built-in list — so the hello carries enough about them to ask anyway.
+  const guest = draftTo && !NEIGHBOURS.some(n => n.id === draftTo.id) ? draftTo : null;
+  const canAsk = askable(guest ? [{ ...guest }, ...NEIGHBOURS] : NEIGHBOURS, threads);
   const chosen = canAsk.find(n => n.id === askingWho) ?? null;
+
+  // Arriving from "draft a friendly hello": open the conversation with that
+  // person if you already have one, and otherwise start the request to them
+  // with the hello already written. Either way it goes to who it was for.
+  useEffect(() => {
+    if (!draftTo) return;
+    const existing = threads.find(t => t.neighbourId === draftTo.id);
+    if (existing) { setSelectedId(existing.id); return; }
+    setAsking(true);
+    setAskingWho(draftTo.id);
+    setOpener(current => current || draft);
+    setDraft('');
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftTo]);
 
   async function sendRequest() {
     if (!chosen) return;

@@ -20,6 +20,17 @@ export const MAX_EDGE = 384;
  */
 export const SOURCE_EDGE = 720;
 
+/**
+ * The copy that travels to other people.
+ *
+ * Small on purpose. A shared row goes into a store everyone reads, so this is
+ * the size that makes you recognisable in a list and nothing more — a few
+ * kilobytes rather than the two hundred the full avatar costs. The big one
+ * never leaves this browser.
+ */
+export const FACE_EDGE = 112;
+export const MAX_FACE_BYTES = 9000;
+
 /** Refuse anything that would crowd out the rest of the profile. */
 export const MAX_STORED_BYTES = 180_000;
 

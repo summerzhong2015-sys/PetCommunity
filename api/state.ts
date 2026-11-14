@@ -67,7 +67,9 @@ type Collection = keyof typeof COLLECTIONS;
 
 /** Nothing in this app needs a long field. Caps are a cheap way to stay sane. */
 const MAX_FIELD = 2000;
-const MAX_ITEM_BYTES = 8000;
+// Enough for a row with a small face photo on it (about 6 KB) and nothing
+// like enough for a full-size one.
+const MAX_ITEM_BYTES = 24000;
 
 function store(): { url: string; token: string } | null {
   const env = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
@@ -111,8 +113,20 @@ async function readList(collection: Collection, at: { url: string; token: string
  */
 function clean(value: unknown, depth = 0): unknown {
   if (depth > 4) return null;
-  if (typeof value === 'string') return value.slice(0, MAX_FIELD);
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    // A data URL is the one long string allowed through, because a shared
+    // face photo is one. Everything else stays short.
+    const limit = value.startsWith('data:image/') ? 14000 : MAX_FIELD;
+    return value.slice(0, limit);
+  }
+  if (typeof value === 'number') {
+    // Finite, and within range a person could plausibly mean. A browser that
+    // sends 1e308 has either a bug or bad intentions, and either way the
+    // arithmetic downstream turns it into Infinity and breaks the page for
+    // everybody.
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(-1e12, Math.min(1e12, value));
+  }
   if (typeof value === 'boolean' || value === null) return value;
   if (Array.isArray(value)) return value.slice(0, 60).map((v) => clean(v, depth + 1));
   if (typeof value === 'object') {

@@ -12,6 +12,32 @@
  * anything further goes.
  */
 
+/**
+ * The most one contribution can be.
+ *
+ * Not a guess at generosity — a guard. Without it the amount box took any
+ * number at all, somebody typed 1e308 while testing, a few of those added up
+ * to Infinity, and every campaign on the page read as funded for everybody,
+ * forever. An upper bound is the cheapest possible fix for a whole class of
+ * that, and it costs nothing: nobody is giving a shelter six figures through
+ * a demo.
+ */
+export const MAX_CONTRIBUTION = 100_000;
+
+/**
+ * An amount, or nothing.
+ *
+ * Everything that reaches the totals goes through here, including rows that
+ * were written before the cap existed — so the junk already in the store
+ * stops breaking the page without anybody having to delete it.
+ */
+export function readAmount(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  const rounded = Math.round(value);
+  if (rounded <= 0 || rounded > MAX_CONTRIBUTION) return null;
+  return rounded;
+}
+
 export type FundingState = 'open' | 'nearly' | 'funded';
 
 export type Funding = {
@@ -29,7 +55,9 @@ const NEARLY_THRESHOLD = 0.1;
 
 export function fundingOf(goal: number, raised: number): Funding {
   const safeGoal = Math.max(1, Math.round(goal));
-  const total = Math.max(0, Math.round(raised));
+  // A total that is not a real number is a bug upstream, and the honest
+  // thing to show is nothing raised rather than a page full of Infinity.
+  const total = Number.isFinite(raised) ? Math.max(0, Math.round(raised)) : 0;
   const remaining = Math.max(0, safeGoal - total);
   const surplus = Math.max(0, total - safeGoal);
   const percent = Math.min(100, (total / safeGoal) * 100);
@@ -132,14 +160,14 @@ export type Contribution = { amount: number; at: number };
  */
 export function metAt(goal: number, alreadyRaised: number, contributions: Contribution[], now = Date.now()): number | null {
   const safeGoal = Math.max(1, Math.round(goal));
-  let total = Math.max(0, Math.round(alreadyRaised));
+  let total = Number.isFinite(alreadyRaised) ? Math.max(0, Math.round(alreadyRaised)) : 0;
   // Already over the line before anybody here gave: it was met at some point
   // we were never told about, so the clock starts now rather than in the past.
   if (total >= safeGoal) return now;
 
   const inOrder = [...contributions].filter((c) => Number.isFinite(c.at) && Number.isFinite(c.amount)).sort((a, b) => a.at - b.at);
   for (const contribution of inOrder) {
-    total += Math.max(0, Math.round(contribution.amount));
+    total += readAmount(contribution.amount) ?? 0;
     if (total >= safeGoal) return contribution.at;
   }
   return null;

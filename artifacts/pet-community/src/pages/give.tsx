@@ -30,7 +30,8 @@ import { useShared } from '@/components/use-shared';
 import { type SharedItem } from '@/lib/shared';
 import { visitorId } from '@/lib/visitor';
 import {
-  describeNext, describeWindDown, fundingOf, metAt, nextItem, suggestedAmounts, windDown,
+  MAX_CONTRIBUTION,
+  describeNext, describeWindDown, fundingOf, metAt, nextItem, readAmount, suggestedAmounts, windDown,
   type WindDown,
 } from '@/lib/funding';
 import {
@@ -48,7 +49,7 @@ type Donation = { id: string; campaignId: string; amount: number; at: number; re
 /** A shared row, read back into something this page can use. */
 function asDonation(item: SharedItem): Donation | null {
   const campaignId = typeof item.campaignId === 'string' ? item.campaignId : null;
-  const amount = typeof item.amount === 'number' && Number.isFinite(item.amount) ? Math.max(0, Math.round(item.amount)) : null;
+  const amount = readAmount(item.amount);
   if (!campaignId || amount === null) return null;
   return {
     id: item.id,
@@ -520,7 +521,11 @@ function CampaignDetail({
   const [recurring, setRecurring] = useState(false);
   const [receipt, setReceipt] = useState<{ amount: number; recurring: boolean } | null>(null);
 
-  const chosen = custom.trim() ? Math.max(1, Math.round(Number(custom) || 0)) : amount;
+  // Clamped here as well as on the way in, so the figure on screen is the
+  // figure that will be recorded.
+  const typed = custom.trim() ? Math.round(Number(custom) || 0) : null;
+  const chosen = typed === null ? amount : Math.min(MAX_CONTRIBUTION, Math.max(1, typed));
+  const tooMuch = typed !== null && typed > MAX_CONTRIBUTION;
   const funding = fundingOf(campaign.goal, raised);
   const pct = funding.percent;
   const remaining = funding.remaining;
@@ -698,6 +703,7 @@ function CampaignDetail({
                 <input
                   type="number"
                   min={1}
+                  max={MAX_CONTRIBUTION}
                   value={custom}
                   onChange={(e) => setCustom(e.target.value)}
                   className="field mt-2.5"
@@ -705,6 +711,11 @@ function CampaignDetail({
                   aria-label="Custom amount"
                   data-testid={`input-custom-${campaign.id}`}
                 />
+                {tooMuch && (
+                  <p className="text-[11px] text-destructive mt-1.5" data-testid="text-too-much">
+                    {money(MAX_CONTRIBUTION)} is the most one contribution can be. That is what will be recorded.
+                  </p>
+                )}
                 <label className="flex items-center gap-2.5 mt-3.5 text-sm cursor-pointer">
                   <input
                     type="checkbox"

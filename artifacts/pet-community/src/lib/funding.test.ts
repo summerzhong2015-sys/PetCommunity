@@ -10,7 +10,7 @@
  */
 
 import { CAMPAIGNS, PRESET_AMOUNTS } from './giving-data.ts';
-import { describeNext, fundingOf, nextItem, suggestedAmounts , WIND_DOWN_DAYS, describeWindDown, metAt, windDown } from './funding.ts';
+import { describeNext, fundingOf, nextItem, suggestedAmounts , WIND_DOWN_DAYS, describeWindDown, metAt, windDown , MAX_CONTRIBUTION, readAmount } from './funding.ts';
 
 let pass = 0, fail = 0;
 const out: string[] = [];
@@ -181,6 +181,36 @@ for (const campaign of CAMPAIGNS) {
     describeWindDown(windDown(now - (3 * DAY - 1000), now)) === 'Leaving the page within the hour');
   check('a gone campaign says so', describeWindDown(windDown(now - 10 * DAY, now)) === 'Closed');
   check('nothing to describe is an empty string', describeWindDown(null) === '');
+}
+
+// --- an amount has to be an amount ---------------------------------------
+// A real incident: somebody typed 1e308 into the custom box, a few of those
+// summed to Infinity, every campaign read as funded for everybody, and the
+// wind-down then swept them all off the page. These tests are that bug.
+{
+  check('a plain amount survives', readAmount(40) === 40);
+  check('a decimal is rounded', readAmount(40.6) === 41);
+  check('the cap is a human number', MAX_CONTRIBUTION > 1000 && MAX_CONTRIBUTION <= 1_000_000, String(MAX_CONTRIBUTION));
+  check('the cap itself is allowed', readAmount(MAX_CONTRIBUTION) === MAX_CONTRIBUTION);
+  check('a pound over the cap is refused', readAmount(MAX_CONTRIBUTION + 1) === null);
+  check('1e308 is refused', readAmount(1e308) === null);
+  check('Infinity is refused', readAmount(Infinity) === null);
+  check('NaN is refused', readAmount(Number.NaN) === null);
+  check('zero is not a contribution', readAmount(0) === null);
+  check('a negative is refused', readAmount(-50) === null);
+  for (const junk of ['40', null, undefined, {}, []]) {
+    check(`${JSON.stringify(junk)} is not an amount`, readAmount(junk) === null);
+  }
+
+  // The arithmetic must not produce a nonsense answer even if one gets past.
+  const wild = fundingOf(1000, Infinity);
+  check('an impossible total reads as nothing raised', wild.percent === 0 && wild.remaining === 1000,
+    JSON.stringify(wild));
+  check('and NaN does too', fundingOf(1000, Number.NaN).remaining === 1000);
+  check('a single absurd contribution does not fund a campaign',
+    metAt(1000, 0, [{ amount: 1e308, at: 1 }], 2) === null);
+  check('but real ones still do',
+    metAt(1000, 900, [{ amount: 100, at: 5 }], 9) === 5);
 }
 
 console.log(out.join('\n'));

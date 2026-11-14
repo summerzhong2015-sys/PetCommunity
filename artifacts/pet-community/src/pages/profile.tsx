@@ -183,10 +183,10 @@ export function Profile({
                     existingSource={form.avatarSource}
                     existingCrop={form.avatarCrop}
                     onReframeHandled={() => setReframing(false)}
-                    onPicked={({ avatar, source, crop }) =>
-                      update({ avatar, avatarSource: source, avatarCrop: crop })
+                    onPicked={({ avatar, source, crop, face }) =>
+                      update({ avatar, avatarSource: source, avatarCrop: crop, face })
                     }
-                    onCleared={() => update({ avatar: undefined, avatarSource: undefined, avatarCrop: undefined })}
+                    onCleared={() => update({ avatar: undefined, avatarSource: undefined, avatarCrop: undefined, face: undefined })}
                     onError={(text) => notify({ tone: 'error', text })}
                   />
 

@@ -302,7 +302,7 @@ export function Give({ notify }: { notify: Notify }) {
             )}
             {donations.length > 0 && (
               <p className="text-xs text-muted-foreground mt-5">
-                Your giving history is still here &mdash; nothing you have given has gone anywhere.
+                What you have given is still in your history.
               </p>
             )}
           </div>
@@ -434,8 +434,7 @@ export function Give({ notify }: { notify: Notify }) {
             <BadgeCheck size={26} className="mx-auto text-primary" />
             <p className="serif text-2xl mt-3">Nothing is asking for money this week</p>
             <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
-              Every campaign here has been met. They stay readable for three days and then come down, and new ones go
-              up as shelters and neighbours ask.
+              Everything has hit its goal. New ones go up as shelters and neighbours ask — usually a few a week.
             </p>
           </div>
         )}
@@ -451,8 +450,7 @@ export function Give({ notify }: { notify: Notify }) {
               <BadgeCheck size={16} /> {funded.length} fully funded &mdash; see {funded.length === 1 ? 'it' : 'them'}
             </button>
             <p className="text-[11px] text-muted-foreground mt-2">
-              Paid for, and out of the way of the ones that are not. They come down three days after they are met, and
-              anything given to them after that goes where each one says it will.
+              These are done. They stay up for three days so people can see them land, then they go.
             </p>
           </div>
         )}

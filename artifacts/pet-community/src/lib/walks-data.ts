@@ -36,7 +36,7 @@ export type Walk = {
   /** A photograph of the route. */
   photo?: string;
   name: string;
-  neighborhood: string;
+  neighbourhood: string;
   distance: string;
   duration: string;
   level: string;
@@ -74,7 +74,7 @@ export const defaultWalks: Walk[] = [
     scene: 'creek',
     photo: '1663185777535-86bf6a489607',
     name: 'The Nicomekl Loop',
-    neighborhood: 'the Nicomekl trail',
+    neighbourhood: 'the Nicomekl trail',
     distance: '2.8 km',
     duration: '35 min',
     level: 'Easy',
@@ -119,7 +119,7 @@ export const defaultWalks: Walk[] = [
     scene: 'park',
     photo: '1686470590549-5180acd912ec',
     name: 'Old Yale Park Circuit',
-    neighborhood: 'Old Yale Park',
+    neighbourhood: 'Old Yale Park',
     distance: '1.6 km',
     duration: '20 min',
     level: 'Easy',
@@ -163,7 +163,7 @@ export const defaultWalks: Walk[] = [
     scene: 'park',
     photo: '1785611067420-0b043b8b2b7b',
     name: 'The W.C. Blair Fields',
-    neighborhood: 'W.C. Blair Recreation Centre',
+    neighbourhood: 'W.C. Blair Recreation Centre',
     distance: '2.4 km',
     duration: '30 min',
     level: 'Easy',
@@ -207,7 +207,7 @@ export const defaultWalks: Walk[] = [
     scene: 'park',
     photo: '1770910230325-190f06dcd4ee',
     name: 'The School Run',
-    neighborhood: 'James Hill Park',
+    neighbourhood: 'James Hill Park',
     distance: '1.2 km',
     duration: '15 min',
     level: 'Easy',
@@ -251,7 +251,7 @@ export const defaultWalks: Walk[] = [
     scene: 'park',
     photo: '1774711521738-7856170d7658',
     name: 'The Cemetery Round',
-    neighborhood: 'Murrayville Cemetery',
+    neighbourhood: 'Murrayville Cemetery',
     distance: '1.8 km',
     duration: '25 min',
     level: 'Easy',
@@ -295,7 +295,7 @@ export const defaultWalks: Walk[] = [
     scene: 'creek',
     photo: '1730807125694-6833192896ee',
     name: 'The Arboretum Wander',
-    neighborhood: 'Derek Doubleday Arboretum',
+    neighbourhood: 'Derek Doubleday Arboretum',
     distance: '2.1 km',
     duration: '30 min',
     level: 'Easy',
@@ -339,7 +339,7 @@ export const defaultWalks: Walk[] = [
     scene: 'park',
     photo: '1733259658566-26e3f86b4eaf',
     name: 'Five Corners and Back',
-    neighborhood: 'Five Corners',
+    neighbourhood: 'Five Corners',
     distance: '1.4 km',
     duration: '20 min',
     level: 'Easy',

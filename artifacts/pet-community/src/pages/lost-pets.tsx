@@ -528,7 +528,7 @@ export function LostPets({ notify, profile }: { notify: Notify; profile?: PetPro
         {active.length === 0 ? (
           <EmptyState
             title="No active alerts"
-            copy="That is good news. This space will stay ready if a neighbour needs a quick hand."
+            copy="Nothing missing round here today."
             icon={ShieldCheck}
           />
         ) : (

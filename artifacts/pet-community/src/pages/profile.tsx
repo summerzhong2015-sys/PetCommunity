@@ -143,7 +143,7 @@ export function Profile({
             <em className="text-primary not-italic">four-legged hellos.</em>
           </>
         }
-        description="Draw something that looks like them, or use a photo if you have one handy. Add a line or two, and watch how it will look to everyone else as you go."
+        description="Draw something that looks like them, or use a photo if you have one. Add a line or two about them \u2014 you can see how it will look to everyone else as you type."
       />
 
       <section className="page-wrap-wide pb-12">
@@ -193,8 +193,8 @@ export function Profile({
                   <div className="mt-5 pt-4 border-t border-border/70 text-left">
                     <p className="eyebrow mb-1">Frame it</p>
                     <p className="text-[11px] text-muted-foreground mb-3">
-                      Follows your picture around the app, and quietly takes on the
-                      colour of whatever page you are on.
+                      Goes wherever your picture goes, and picks up the colour of
+                      whichever page you are on.
                     </p>
                     <div className="flex flex-wrap gap-2.5">
                       {FRAMES.map((option) => (
@@ -410,9 +410,9 @@ export function Profile({
                   )}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1 mb-3 leading-relaxed">
-                  Find the corner you usually set off from and tap it. It gets rounded to the nearest 50 metres before
-                  it is saved &mdash; that is what the circle is &mdash; and what neighbours see is the landmark name,
-                  never the pin. Nothing here asks your phone where you are.
+                  Tap the corner you usually set off from. It gets rounded to the nearest 50 metres — that is the circle —
+                  and neighbours only ever see the landmark name, never the pin. Nothing here asks your phone where
+                  you are.
                 </p>
                 <AreaPicker area={form.area} onPick={setArea} />
                 <div className="flex flex-wrap gap-1.5 mt-3">

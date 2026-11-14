@@ -145,7 +145,7 @@ export function Walks({ notify }: { notify: Notify }) {
                 </div>
 
                 <div className="p-5">
-                  <p className="eyebrow">{walk.neighborhood}</p>
+                  <p className="eyebrow">{walk.neighbourhood}</p>
                   <h2 className="serif text-2xl mt-1">{walk.name}</h2>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mt-3">
                     <span className="inline-flex items-center gap-1">
@@ -192,7 +192,7 @@ export function Walks({ notify }: { notify: Notify }) {
                         <Fact icon={Sun} label="Shade" value={walk.shade} />
                         <Fact icon={Droplets} label="Water" value={walk.water} />
                         <Fact icon={UsersRound} label="Off-leash" value={walk.offLeash} />
-                        <Fact icon={MapPin} label="Where" value={walk.neighborhood} />
+                        <Fact icon={MapPin} label="Where" value={walk.neighbourhood} />
                       </div>
 
                       <div>
@@ -308,7 +308,7 @@ export function Walks({ notify }: { notify: Notify }) {
               <Plus size={16} /> {moreCount} more {moreCount === 1 ? 'route' : 'routes'}
             </button>
             <p className="text-[11px] text-muted-foreground mt-2">
-              The busiest ones are up top. The quiet ones are often the better walk.
+              Busiest first. The quiet ones are down there too.
             </p>
           </div>
         )}

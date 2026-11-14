@@ -208,7 +208,7 @@ export function Adopt({ notify }: { notify: Notify }) {
         {pets.length === 0 ? (
           <EmptyState
             title="Nothing matches that just now"
-            copy="Try widening the filters. New animals come in most weeks, and the shelters always have more in the back than on the list."
+            copy="Try fewer filters. New animals arrive most weeks, and there are always more than make it onto the list."
             icon={Heart}
           />
         ) : (
@@ -288,7 +288,7 @@ export function Adopt({ notify }: { notify: Notify }) {
               <PawPrint size={16} /> {hidden} more {hidden === 1 ? 'animal' : 'animals'} looking for homes
             </button>
             <p className="text-[11px] text-muted-foreground mt-2">
-              The ones waiting longest are not always at the top. It is worth the click.
+              Some of them have been waiting months.
             </p>
           </div>
         )}
@@ -781,7 +781,7 @@ export function Shelters({ notify }: { notify: Notify }) {
             <em className="text-primary not-italic">go and see them.</em>
           </>
         }
-        description="Opening hours, what to expect when you walk in, and the things they actually need this week. You do not have to be adopting to visit."
+        description="Opening hours, what it is like inside, and what each one is short of this week. You do not have to be adopting to drop in."
         action={
           <Link href="/adopt" className="action-button button-quiet" data-testid="link-adopt-from-shelters">
             <Heart size={16} /> See who needs a home

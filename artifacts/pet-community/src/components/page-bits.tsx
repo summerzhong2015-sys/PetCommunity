@@ -18,13 +18,13 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="page-wrap pt-8 pb-6 md:pt-12 md:pb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <header className="page-header page-wrap pt-8 pb-6 md:pt-12 md:pb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p className="eyebrow mb-2">{eyebrow}</p>
         <h1 className="serif text-4xl md:text-5xl tracking-tight leading-[.98]" data-testid="text-page-title">
           {title}
         </h1>
-        <p className="text-sm text-muted-foreground mt-3 max-w-xl leading-relaxed">{description}</p>
+        <p className="page-header-note text-sm text-muted-foreground mt-3 max-w-xl leading-relaxed">{description}</p>
       </div>
       {action}
     </header>

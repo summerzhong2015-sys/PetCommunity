@@ -227,7 +227,7 @@ export function Adopt({ notify }: { notify: Notify }) {
                       photo={pet.photo}
                       portrait={pet.portrait}
                       alt={`${pet.name}, a ${pet.breed}`}
-                      className="w-full aspect-square"
+                      className="photo-tile w-full aspect-square"
                       rounded={0}
                       width={520}
                     />
@@ -803,7 +803,7 @@ export function Shelters({ notify }: { notify: Notify }) {
                 <PetPhoto
                   photo={shelter.photo}
                   alt={shelter.name}
-                  className="w-full sm:w-44 aspect-[4/3] sm:aspect-square rounded-[1rem] shrink-0"
+                  className="photo-tile w-full sm:w-44 aspect-[4/3] sm:aspect-square rounded-[1rem] shrink-0"
                   width={420}
                   fallback={<span className="block w-full h-full bg-secondary" />}
                 />

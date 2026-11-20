@@ -414,6 +414,66 @@
   .pull-line { font-size: 1.04rem; }
 }
 
+/* ---- On a phone ----------------------------------------------------------
+ * Every size here was chosen on a laptop and then handed to a screen a third
+ * the width. A 36px title over a two-line standfirst, a photograph as tall as
+ * three-quarters of the screen, chat bubbles set for a desk — together that is
+ * a page you scroll a long way to see four things.
+ *
+ * So on a phone the whole scale comes in. Nothing is removed and nothing is
+ * hidden behind a tap: it is the same page, closer together, and it lands
+ * where a thumb can reach it.
+ *
+ * These rules sit outside @layer on purpose. Tailwind's utilities live inside
+ * one, and unlayered styles win over layered ones whatever their specificity,
+ * so the sizes in the markup hold everywhere except here.
+ */
+@media (max-width: 640px) {
+  .page-header { padding-top: 1.3rem; padding-bottom: .85rem; }
+  .page-header h1 { font-size: 1.8rem; line-height: 1.05; }
+  /* The standfirst explains the page; three lines is plenty on a phone. */
+  .page-header-note {
+    font-size: .82rem;
+    margin-top: .45rem;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+  .prose-note { font-size: .9rem; line-height: 1.56; }
+
+  /* A photograph should be glanceable, not a page of its own. The crop keeps
+     the animal centred, so capping the height loses the sky, not the dog. */
+  .photo-tile { max-height: 11.5rem; }
+
+  /* The conversation. Shorter bubbles, less air between them, and a column
+     that does not demand 460px before a single message is in it. */
+  .chat-pane { min-height: 19rem; }
+  .chat-stream { padding: .8rem; }
+  .chat-stream > * + * { margin-top: .4rem; }
+  .chat-bubble { max-width: 86%; padding: .5rem .75rem; font-size: .86rem; line-height: 1.45; }
+  .chat-bubble .chat-time { margin-top: .25rem; }
+}
+
+/* Turned sideways there are only a few hundred pixels of height to work with,
+   and a header built for a tall screen leaves nothing underneath it. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .page-header { padding-top: .7rem; padding-bottom: .55rem; }
+  .page-header h1 { font-size: 1.5rem; line-height: 1.06; }
+  .page-header-note {
+    font-size: .82rem;
+    margin-top: .35rem;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .photo-tile { max-height: 9rem; }
+  .chat-pane { min-height: 0; }
+}
+
 /* A photograph on its way, rather than a hole in the page. */
 @keyframes photo-loading { 0%, 100% { opacity: .5; } 50% { opacity: .95; } }
 .photo-loading {

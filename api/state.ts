@@ -67,6 +67,23 @@ type Collection = keyof typeof COLLECTIONS;
 
 /** Nothing in this app needs a long field. Caps are a cheap way to stay sane. */
 const MAX_FIELD = 2000;
+
+/**
+ * The largest number this app can mean.
+ *
+ * This used to be 1e12, which looked generous until you remember that every
+ * row carries a timestamp: `Date.now()` passed 1e12 in 2001, so each new row
+ * had its clock set back twenty-five years on the way in. Nothing looked
+ * broken — the rows arrived, the text was right — but everything measured in
+ * time quietly went wrong: a campaign funded this morning was judged three
+ * days stale and swept off the page, a pet reported missing an hour ago read
+ * as missing since 2001, and a new comment sorted underneath old ones.
+ *
+ * The ceiling is the largest integer JavaScript counts reliably, which is
+ * four figures of millennia in milliseconds and far more than any amount of
+ * money. It is here to stop Infinity and 1e308, not to second-guess a date.
+ */
+const MAX_NUMBER = Number.MAX_SAFE_INTEGER;
 // Enough for a row with a small face photo on it (about 6 KB) and nothing
 // like enough for a full-size one.
 const MAX_ITEM_BYTES = 24000;
@@ -97,13 +114,23 @@ function key(collection: Collection): string {
 async function readList(collection: Collection, at: { url: string; token: string }): Promise<unknown[]> {
   const raw = await redis(['GET', key(collection)], at);
   if (typeof raw !== 'string' || raw === '') return [];
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    parsed = JSON.parse(raw);
   } catch {
     // A corrupted value is not worth taking the whole page down for.
     return [];
   }
+  if (!Array.isArray(parsed)) return [];
+
+  // Rows that cannot be true of anything are dropped, and the store is tidied
+  // the first time one is read so it does not happen again. Only impossible
+  // numbers qualify; nothing is removed for being old, small or unpopular.
+  const rows = parsed.filter(sane);
+  if (rows.length !== parsed.length) {
+    await redis(['SET', key(collection), JSON.stringify(rows)], at);
+  }
+  return rows;
 }
 
 /**
@@ -111,7 +138,7 @@ async function readList(collection: Collection, at: { url: string; token: string
  * field rather than trusted: strings only, trimmed, length-capped, and never
  * any key we did not ask for.
  */
-function clean(value: unknown, depth = 0): unknown {
+export function clean(value: unknown, depth = 0): unknown {
   if (depth > 4) return null;
   if (typeof value === 'string') {
     // A data URL is the one long string allowed through, because a shared
@@ -120,12 +147,13 @@ function clean(value: unknown, depth = 0): unknown {
     return value.slice(0, limit);
   }
   if (typeof value === 'number') {
-    // Finite, and within range a person could plausibly mean. A browser that
-    // sends 1e308 has either a bug or bad intentions, and either way the
-    // arithmetic downstream turns it into Infinity and breaks the page for
-    // everybody.
-    if (!Number.isFinite(value)) return 0;
-    return Math.max(-1e12, Math.min(1e12, value));
+    // A browser that sends 1e308 has either a bug or bad intentions, and
+    // either way the arithmetic downstream turns into Infinity and breaks the
+    // page for everybody. Such a number is not trimmed to the ceiling — that
+    // would keep a nonsense value and make it look deliberate — it is zero,
+    // which every reader of this data already treats as "nothing here".
+    if (!Number.isFinite(value) || Math.abs(value) > MAX_NUMBER) return 0;
+    return value;
   }
   if (typeof value === 'boolean' || value === null) return value;
   if (Array.isArray(value)) return value.slice(0, 60).map((v) => clean(v, depth + 1));
@@ -137,6 +165,24 @@ function clean(value: unknown, depth = 0): unknown {
     return out;
   }
   return null;
+}
+
+/**
+ * Whether every number in a stored row is one somebody could have meant.
+ *
+ * Rows written before the check above went in are still in the store, and a
+ * few of them carry 1e308 from an old client bug. The readers all guard
+ * themselves now, but a row that cannot be true of anything is not worth
+ * sending to every phone every twenty seconds, so reading drops it.
+ */
+export function sane(value: unknown, depth = 0): boolean {
+  if (depth > 5) return true;
+  if (typeof value === 'number') return Number.isFinite(value) && Math.abs(value) <= MAX_NUMBER;
+  if (Array.isArray(value)) return value.every((v) => sane(v, depth + 1));
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).every((v) => sane(v, depth + 1));
+  }
+  return true;
 }
 
 function json(body: unknown, status = 200): object {
